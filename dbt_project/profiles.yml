@@ -1,0 +1,35 @@
+# PULSE-managed — rewritten on every scaffold.
+# Local target: dbt-spark[session] in-process; dispatches to docker-compose spark-master
+#   via SPARK_MASTER_URL env var (set in airflow container).
+# Dev target: Hive Thrift to external Spark gateway; configured by #72 tenant compute.
+home_lending:
+  target: "{{ env_var('DBT_TARGET', 'local') }}"
+  outputs:
+    local:
+      type: spark
+      method: session
+      host: NA   # unused for session method; required by adapter schema
+      schema: "{{ env_var('DBT_SCHEMA', 'pulse_dev') }}"
+      threads: "{{ env_var('DBT_THREADS', '2') | int }}"
+      server_side_parameters:
+        spark.master: "{{ env_var('SPARK_MASTER_URL', 'local[*]') }}"
+        spark.sql.extensions: io.delta.sql.DeltaSparkSessionExtension
+        spark.sql.catalog.spark_catalog: org.apache.spark.sql.delta.catalog.DeltaCatalog
+        spark.jars.packages: org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262,io.delta:delta-spark_2.12:3.3.2
+        spark.hadoop.fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+        spark.hadoop.fs.s3a.endpoint: "{{ env_var('MINIO_ENDPOINT', 'http://minio:9000') }}"
+        spark.hadoop.fs.s3a.access.key: "{{ env_var('AWS_ACCESS_KEY_ID', env_var('MINIO_ACCESS_KEY', 'minioadmin')) }}"
+        spark.hadoop.fs.s3a.secret.key: "{{ env_var('AWS_SECRET_ACCESS_KEY', env_var('MINIO_SECRET_KEY', 'minioadmin')) }}"
+        spark.hadoop.fs.s3a.path.style.access: 'true'
+        spark.hadoop.fs.s3a.connection.ssl.enabled: 'false'
+    dev:
+      type: spark
+      method: thrift
+      schema: "{{ env_var('DBT_SPARK_SCHEMA', 'silver_dev') }}"
+      host: "{{ env_var('DBT_SPARK_HOST', 'localhost') }}"
+      port: "{{ env_var('DBT_SPARK_PORT', '10000') | int }}"
+      user: "{{ env_var('DBT_SPARK_USER', '') }}"
+      password: "{{ env_var('DBT_SPARK_PASSWORD', '') }}"
+      threads: "{{ env_var('DBT_SPARK_THREADS', '4') | int }}"
+      connect_timeout: 60
+      connect_retries: 3

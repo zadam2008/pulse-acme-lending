@@ -1,0 +1,42 @@
+# PULSE-managed — rewritten on every scaffold. Edits to this file are reverted.
+# Materialization defaults follow ADR-001 (silver-materializes-as-table on
+# dbt-spark/Iceberg substrate; view-default would force re-scans of bronze).
+name: 'home_lending'
+version: '0.1.0'
+config-version: 2
+profile: 'home_lending'
+require-dbt-version: ">=1.7.0,<2.0.0"
+model-paths: ["models"]
+seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+analysis-paths: ["analyses"]
+target-path: "target"
+clean-targets:
+  - target
+  - dbt_packages
+
+quoting:
+  database: false
+  schema: false
+  identifier: false
+
+models:
+  home_lending:
+    +persist_docs:
+      relation: true
+      columns: true
+    staging:
+      +materialized: table
+      +tags: ['staging', 'silver']
+    intermediate:
+      +materialized: table
+      +tags: ['intermediate', 'silver']
+    marts:
+      +materialized: table
+      +tags: ['marts', 'gold']
+
+snapshots:
+  home_lending:
+    +target_schema: snapshots
