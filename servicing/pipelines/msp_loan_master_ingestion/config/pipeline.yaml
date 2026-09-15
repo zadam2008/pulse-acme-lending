@@ -8,14 +8,32 @@ pipeline:
   domain: Servicing
 
 steps:
+  - name: SenseLoanMasterFile
+    blueprint: FileArrivalSensor
+    category: ORCHESTRATION
+    params:
+      bucket: pulse-home-lending-dev-files
+      path_prefix: servicing/msp/msp-loan-master-ingestion/SRC/loan_master_
+      storage_kind: gcs
+      filename_pattern: loan_master_*.csv
   - name: IngestLoanMaster
     blueprint: FileIngestion
     category: INGESTION
     params:
-      sor_id: 01M2JSKJ2TF2XJ13TC5VPMKBES
-      dataset_ids: [01M2JSMTJ85A5SZ4JKRV7GNZTW]
+      sor_id: 01M2JYYT301W6E9TBGCQ3N4SND
+      delimiter: ,
+      has_header: true
+      dataset_ids: [01M2JZ06D49G7QZRNP2181F1E8]
+      pattern_kind: template
       filename_pattern: loan_master_YYYYMMDD.csv
-      connector_instance_id: 01M2JSKRD318Z0W5KXQD976DBH
+      connector_instance_id: 01M2JYZ9BQQV2Y7059GFBDVPQQ
+  - name: DetectLoanMasterDrift
+    blueprint: SchemaDriftDetection
+    category: DATA_QUALITY
+    params:
+      drift_policy: warn
+      expected_columns: [{name=loan_id}, {name=loan_number}, {name=servicer_name}, {name=investor_name}, {name=loan_type}, {name=loan_purpose}, {name=loan_status}, {name=origination_date}, {name=maturity_date}, {name=original_loan_amount}, {name=current_upb}, {name=interest_rate}, {name=rate_type}, {name=arm_margin}, {name=arm_rate_cap}, {name=arm_rate_floor}, {name=next_rate_adjustment_date}, {name=original_loan_term_months}, {name=remaining_term_months}, {name=pi_payment}, {name=escrow_payment_monthly}, {name=total_monthly_payment}, {name=payment_frequency}, {name=escrow_status}, {name=escrow_balance}, {name=last_payment_date}, {name=next_payment_due_date}, {name=months_delinquent}, {name=ltv_ratio}, {name=cltv_ratio}, {name=appraised_value}, {name=property_type}, {name=occupancy_type}, {name=property_address_line1}, {name=property_city}, {name=property_state}, {name=property_zip}, {name=property_county}, {name=number_of_units}, {name=year_built}, {name=tax_amount_annual}, {name=insurance_type}, {name=insurance_premium_annual}, {name=flood_zone}, {name=flood_insurance_required}, {name=flood_insurance_annual}, {name=has_pmi}, {name=pmi_monthly_premium}, {name=pmi_provider}, {name=origination_channel}, {name=documentation_type}, {name=borrower_first_name}, {name=borrower_last_name}, {name=borrower_ssn}, {name=borrower_dob}, {name=borrower_email}, {name=borrower_phone}, {name=borrower_marital_status}, {name=borrower_employment_status}, {name=borrower_annual_income}, {name=borrower_credit_score}, {name=borrower_dti_ratio}, {name=borrower_bankruptcy_history}, {name=co_borrower_first_name}, {name=co_borrower_last_name}, {name=co_borrower_relationship}, {name=co_borrower_credit_score}, {name=co_borrower_annual_income}, {name=modification_type}, {name=modification_date}, {name=late_charges_due}, {name=suspense_balance}, {name=partial_payment_balance}, {name=last_inspection_date}, {name=mers_registered}, {name=mers_min_number}, {name=investor_loan_id}, {name=boarding_date}]
+      allow_extra_columns: false
   - name: CleanLoanMaster
     blueprint: BronzeToSilverCleaning
     category: TRANSFORM
@@ -23,16 +41,34 @@ steps:
     blueprint: PIIMasking
     category: TRANSFORM
     params:
-      columns_to_mask: [borrower_first_name, borrower_last_name, borrower_ssn, borrower_email, borrower_phone, property_address]
+      columns_to_mask: [borrower_first_name, borrower_last_name, borrower_ssn, borrower_email, borrower_phone, co_borrower_first_name, co_borrower_last_name]
+      masking_strategy: hash
   - name: ValidateLoanMaster
     blueprint: DQValidator
     category: DATA_QUALITY
+    params:
+      on_failure: quarantine
+      threshold_percent: 95
   - name: LoanMasterSCD2
     blueprint: SCD2Dimension
     category: MODELING
     params:
       business_key: [loan_id]
-      tracked_columns: [loan_status, current_upb, interest_rate, servicer_name, investor_name, escrow_balance, months_delinquent, next_payment_due_date]
+      tracked_columns: [loan_status, current_upb, interest_rate, next_payment_due_date, escrow_balance, months_delinquent, borrower_address, servicer_code]
+  - name: CheckLoanMasterFreshness
+    blueprint: FreshnessChecks
+    category: DATA_QUALITY
+    params:
+      timestamp_column: last_payment_date
+      max_age_business_days: 1
+  - name: ScheduleLoanMaster
+    blueprint: ScheduleAndTriggers
+    category: ORCHESTRATION
+    params:
+      schedule_type: cron
+      catchup_enabled: false
+      cron_expression: 0 6 * * 1-5
+      depends_on_past: false
   - name: AdvanceLoanMasterDate
     blueprint: AdvanceTimeDimension
     category: ORCHESTRATION

@@ -7,7 +7,7 @@ from pyspark.sql import SparkSession
 
 PULSE_BUSINESS_DATE = os.environ.get('PULSE_BUSINESS_DATE', '{{ ds }}')
 spark = SparkSession.builder.appName('gx_checkloanmasterfreshness').getOrCreate()
-df = spark.read.format('bigquery').option('table', 'wf-pulse-agentic-dev2.pulse_silver.msp_loan_master_ingestion__cleanloanmaster').load()
+df = spark.read.format('bigquery').option('table', 'wf-pulse-agentic-dev2.pulse_gold.msp_loan_master_ingestion__loanmasterscd2').load()
 report_df = df
 # check-data: freshness SLA check over 'df' (no runtime GX); builds report_df.
 import os

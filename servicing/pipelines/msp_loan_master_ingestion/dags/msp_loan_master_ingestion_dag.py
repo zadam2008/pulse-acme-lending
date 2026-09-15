@@ -31,15 +31,20 @@ default_args = {
 
 with DAG(
     dag_id='pulse_msp_loan_master_ingestion_v1',
-    description='Daily ingestion of loan master data from MSP with SCD2 history tracking, PII masking, and data quality validation',
+    description='Daily ingestion of MSP loan master file with PII masking, SCD2 history tracking, and data quality validation',
     default_args=default_args,
-    schedule=None,
+    schedule='0 6 * * 1-5',
     start_date=datetime(2026, 1, 1),
     catchup=False,
     # PULSE re-run contract: IDEMPOTENT_OVERWRITE (source: PLATFORM_DEFAULT)
     max_active_runs=2,
     tags=['pulse', 'tenant-home-lending', 'servicing'],
 ) as dag:
+
+    with TaskGroup('senseloanmasterfile') as tg_senseloanmasterfile:
+        # Codegen engine: CodegenOpEngine
+        # DAG-only blueprint: FileArrivalSensor
+        senseloanmasterfile = GCSObjectsWithPrefixExistenceSensor(task_id='senseloanmasterfile', bucket='pulse-home-lending-dev-files', prefix='servicing/msp/msp-loan-master-ingestion/SRC/loan_master_/loan_master_')
 
     with TaskGroup('ingestloanmaster') as tg_ingestloanmaster:
         ingestloanmaster = DataprocCreateBatchOperator(
@@ -48,6 +53,38 @@ with DAG(
             region='us-central1',
             batch={
                 'pyspark_batch': {'main_python_file_uri': 'gs://pulse-home-lending-dev-files/servicing/pipelines/msp_loan_master_ingestion/jobs/ingestion/ingestloanmaster_ingest.py'},
+                'runtime_config': {'version': '2.2', 'properties': {
+                    'spark.sql.adaptive.enabled': 'true',
+                    'spark.dynamicAllocation.enabled': 'true',
+                    'spark.dynamicAllocation.initialExecutors': '2',
+                    'spark.dynamicAllocation.minExecutors': '2',
+                    'spark.jars': 'gs://pulse-home-lending-dev-files/_jars/iceberg-spark-runtime-3.5_2.13-1.6.1.jar,gs://spark-lib/bigquery/iceberg-bigquery-catalog-1.6.1-1.0.2.jar',
+                    'spark.sql.extensions': 'org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions',
+                    'spark.sql.catalog.pulse': 'org.apache.iceberg.spark.SparkCatalog',
+                    'spark.sql.catalog.pulse.catalog-impl': 'org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog',
+                    'spark.sql.catalog.pulse.gcp_project': 'wf-pulse-agentic-dev2',
+                    'spark.sql.catalog.pulse.gcp_location': 'us-central1',
+                    'spark.sql.catalog.pulse.warehouse': 'gs://pulse-home-lending-dev-lake/_iceberg_warehouse',
+                    'spark.dataproc.driverEnv.PULSE_TASK_ID': '{{ task.task_id }}',
+                    'spark.dataproc.driverEnv.PULSE_RUN_ID': '{{ run_id }}',
+                    'spark.dataproc.driverEnv.PULSE_DAG_ID': '{{ dag.dag_id }}',
+                    'spark.dataproc.driverEnv.PULSE_BUSINESS_DATE': '{{ ds }}',
+                    'spark.dataproc.driverEnv.PULSE_PROCESSING_TS': '{{ ts }}',
+                    'spark.dataproc.driverEnv.PULSE_INGEST_TRY_NUMBER': '{{ ti.try_number }}',
+                }},
+                'environment_config': {'execution_config': {
+                    'subnetwork_uri': 'projects/wf-pulse-agentic-dev2/regions/us-central1/subnetworks/default',
+                }},
+            },
+        )
+
+    with TaskGroup('detectloanmasterdrift') as tg_detectloanmasterdrift:
+        detectloanmasterdrift = DataprocCreateBatchOperator(
+            task_id='detectloanmasterdrift',
+            project_id='wf-pulse-agentic-dev2',
+            region='us-central1',
+            batch={
+                'pyspark_batch': {'main_python_file_uri': 'gs://pulse-home-lending-dev-files/servicing/pipelines/msp_loan_master_ingestion/gx/checkpoints/detectloanmasterdrift_checkpoint.py'},
                 'runtime_config': {'version': '2.2', 'properties': {
                     'spark.sql.adaptive.enabled': 'true',
                     'spark.dynamicAllocation.enabled': 'true',
@@ -101,6 +138,44 @@ with DAG(
             env={'PULSE_BUSINESS_DATE': '{{ ds }}', 'PULSE_PROCESSING_TS': '{{ ts }}', 'PULSE_BQ_PROJECT': 'wf-pulse-agentic-dev2', 'PULSE_BQ_LOCATION': 'us-central1', 'PULSE_BQ_DATASET': 'pulse_gold'},
         )
 
+    with TaskGroup('checkloanmasterfreshness') as tg_checkloanmasterfreshness:
+        checkloanmasterfreshness = DataprocCreateBatchOperator(
+            task_id='checkloanmasterfreshness',
+            project_id='wf-pulse-agentic-dev2',
+            region='us-central1',
+            batch={
+                'pyspark_batch': {'main_python_file_uri': 'gs://pulse-home-lending-dev-files/servicing/pipelines/msp_loan_master_ingestion/gx/checkpoints/checkloanmasterfreshness_checkpoint.py'},
+                'runtime_config': {'version': '2.2', 'properties': {
+                    'spark.sql.adaptive.enabled': 'true',
+                    'spark.dynamicAllocation.enabled': 'true',
+                    'spark.dynamicAllocation.initialExecutors': '2',
+                    'spark.dynamicAllocation.minExecutors': '2',
+                    'spark.jars': 'gs://pulse-home-lending-dev-files/_jars/iceberg-spark-runtime-3.5_2.13-1.6.1.jar,gs://spark-lib/bigquery/iceberg-bigquery-catalog-1.6.1-1.0.2.jar',
+                    'spark.sql.extensions': 'org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions',
+                    'spark.sql.catalog.pulse': 'org.apache.iceberg.spark.SparkCatalog',
+                    'spark.sql.catalog.pulse.catalog-impl': 'org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog',
+                    'spark.sql.catalog.pulse.gcp_project': 'wf-pulse-agentic-dev2',
+                    'spark.sql.catalog.pulse.gcp_location': 'us-central1',
+                    'spark.sql.catalog.pulse.warehouse': 'gs://pulse-home-lending-dev-lake/_iceberg_warehouse',
+                    'spark.dataproc.driverEnv.PULSE_TASK_ID': '{{ task.task_id }}',
+                    'spark.dataproc.driverEnv.PULSE_RUN_ID': '{{ run_id }}',
+                    'spark.dataproc.driverEnv.PULSE_DAG_ID': '{{ dag.dag_id }}',
+                    'spark.dataproc.driverEnv.PULSE_BUSINESS_DATE': '{{ ds }}',
+                    'spark.dataproc.driverEnv.PULSE_PROCESSING_TS': '{{ ts }}',
+                    'spark.dataproc.driverEnv.PULSE_INGEST_TRY_NUMBER': '{{ ti.try_number }}',
+                }},
+                'environment_config': {'execution_config': {
+                    'subnetwork_uri': 'projects/wf-pulse-agentic-dev2/regions/us-central1/subnetworks/default',
+                }},
+            },
+        )
+
+    with TaskGroup('scheduleloanmaster') as tg_scheduleloanmaster:
+        # Codegen engine: CodegenOpEngine
+        # DAG-only blueprint: ScheduleAndTriggers
+        # schedule_interval='0 6 * * 1-5'
+        pass
+
     with TaskGroup('advanceloanmasterdate') as tg_advanceloanmasterdate:
         # Codegen engine: CodegenOpEngine
         # DAG-only blueprint: AdvanceTimeDimension
@@ -122,13 +197,19 @@ with DAG(
         do_xcom_push=False,
     )
     # Intra-layer task group dependencies (from port wirings)
+    tg_senseloanmasterfile >> tg_ingestloanmaster
     tg_cleanloanmaster >> tg_maskloanmasterpii
     tg_maskloanmasterpii >> tg_validateloanmaster
+    tg_loanmasterscd2 >> tg_checkloanmasterfreshness
+    tg_loanmasterscd2 >> tg_advanceloanmasterdate
     tg_ingestloanmaster >> gx_bronze_silver_gate
+    gx_bronze_silver_gate >> tg_detectloanmasterdrift
     gx_bronze_silver_gate >> tg_cleanloanmaster
     gx_bronze_silver_gate >> tg_maskloanmasterpii
     gx_bronze_silver_gate >> tg_validateloanmaster
+    tg_detectloanmasterdrift >> gx_silver_gold_gate
     tg_cleanloanmaster >> gx_silver_gold_gate
     tg_maskloanmasterpii >> gx_silver_gold_gate
     tg_validateloanmaster >> gx_silver_gold_gate
     gx_silver_gold_gate >> tg_loanmasterscd2
+    gx_silver_gold_gate >> tg_checkloanmasterfreshness
