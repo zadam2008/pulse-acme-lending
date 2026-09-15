@@ -1,12 +1,12 @@
 {
-  "pipelineId" : "01M2J7VSP1YES1YYFTZVPSP3HD",
-  "versionId" : "01M2J7VSP22S3CDHD6K9PQV25R",
+  "pipelineId" : "01M2JB2N152M4ZQEMR3Y36XG9N",
+  "versionId" : "01M2JB2N16AXA8T4NXH94K7DZN",
   "domainId" : "01JDOM0SERVICING00000001",
   "domainName" : "Servicing",
   "namespace" : "servicing/pipelines/msp_loan_master_ingestion",
   "nodes" : [ {
-    "instanceId" : "01M2J7VSYNDYMS5SDF4RPN728P",
-    "instanceName" : "Ingest MSP Loan Master",
+    "instanceId" : "01M2JB2NC442FGWK260HJ73DRB",
+    "instanceName" : "IngestLoanMaster",
     "blueprintKey" : "FileIngestion",
     "category" : "INGESTION",
     "compositionRole" : "ingestion",
@@ -15,12 +15,10 @@
     "emitStrategy" : "generate",
     "incomingEdges" : [ ],
     "params" : {
-      "sor_id" : "01M2J7QXWZ493G4A040CMS6D0D",
-      "delimiter" : ",",
-      "has_header" : true,
-      "dataset_ids" : [ "01M2J7S6J85Q2W7653GY43WNNN" ],
+      "sor_id" : "01M2JAY80N84R93H26AGMR5BDG",
+      "dataset_ids" : [ "01M2JAYHG02N3K2MG9M2GHDXPW" ],
       "filename_pattern" : "loan_master_YYYYMMDD.csv",
-      "connector_instance_id" : "01M2J7R38XXHXCQ48JXEYDBR4Q"
+      "connector_instance_id" : "01M2JAYD4PCCTVCDWKZKANYKVQ"
     },
     "validLayers" : [ "bronze" ],
     "artifactHints" : {
@@ -30,8 +28,8 @@
     },
     "partitionBy" : [ "origination_date" ]
   }, {
-    "instanceId" : "01M2J7VT21JY7WP8CJF161MRPD",
-    "instanceName" : "Clean Loan Master",
+    "instanceId" : "01M2JB2NF8RN1NESHD8FQFF34W",
+    "instanceName" : "CleanLoanMaster",
     "blueprintKey" : "BronzeToSilverCleaning",
     "category" : "TRANSFORM",
     "compositionRole" : "transform",
@@ -39,9 +37,9 @@
     "executionContext" : "dbt_spark",
     "emitStrategy" : "generate",
     "incomingEdges" : [ {
-      "targetPortName" : "raw_input",
       "sourcePortName" : "raw_output",
-      "sourceInstanceId" : "01M2J7VSYNDYMS5SDF4RPN728P"
+      "targetPortName" : "raw_input",
+      "sourceInstanceId" : "01M2JB2NC442FGWK260HJ73DRB"
     } ],
     "params" : { },
     "validLayers" : [ "silver" ],
@@ -52,8 +50,8 @@
     },
     "partitionBy" : [ "origination_date" ]
   }, {
-    "instanceId" : "01M2J7VT3VAS7WREY9KDWG2C7P",
-    "instanceName" : "Mask Loan Master PII",
+    "instanceId" : "01M2JB2NH470TG1YDCQ6HDVASE",
+    "instanceName" : "MaskLoanMasterPII",
     "blueprintKey" : "PIIMasking",
     "category" : "TRANSFORM",
     "compositionRole" : "transform",
@@ -61,13 +59,12 @@
     "executionContext" : "dbt_spark",
     "emitStrategy" : "generate",
     "incomingEdges" : [ {
-      "targetPortName" : "sensitive_data",
       "sourcePortName" : "cleaned_output",
-      "sourceInstanceId" : "01M2J7VT21JY7WP8CJF161MRPD"
+      "targetPortName" : "sensitive_data",
+      "sourceInstanceId" : "01M2JB2NF8RN1NESHD8FQFF34W"
     } ],
     "params" : {
-      "columns_to_mask" : [ "borrower_first_name", "borrower_last_name", "borrower_ssn_masked", "borrower_email", "borrower_phone", "borrower_dob", "coborrower_first_name", "coborrower_last_name", "property_address_line1", "property_zip" ],
-      "masking_strategy" : "hash"
+      "columns_to_mask" : [ "borrower_first_name", "borrower_last_name", "borrower_ssn", "borrower_dob", "borrower_email", "borrower_phone", "coborrower_first_name", "coborrower_last_name", "coborrower_ssn", "property_address", "mailing_address" ]
     },
     "validLayers" : [ "silver" ],
     "artifactHints" : {
@@ -77,8 +74,8 @@
     },
     "partitionBy" : [ "origination_date" ]
   }, {
-    "instanceId" : "01M2J7VT6GEGR18WYCH8Q209BS",
-    "instanceName" : "Loan Master SCD2",
+    "instanceId" : "01M2JB2NKCDV4NKDZNGNKR3KYR",
+    "instanceName" : "LoanMasterSCD2",
     "blueprintKey" : "SCD2Dimension",
     "category" : "MODELING",
     "compositionRole" : "modeling",
@@ -86,13 +83,13 @@
     "executionContext" : "dbt_spark",
     "emitStrategy" : "generate",
     "incomingEdges" : [ {
-      "targetPortName" : "source_data",
       "sourcePortName" : "masked_output",
-      "sourceInstanceId" : "01M2J7VT3VAS7WREY9KDWG2C7P"
+      "targetPortName" : "source_data",
+      "sourceInstanceId" : "01M2JB2NH470TG1YDCQ6HDVASE"
     } ],
     "params" : {
-      "business_key" : [ "loan_id" ],
-      "tracked_columns" : [ "loan_status", "current_upb", "interest_rate", "servicer_name", "investor_name", "months_delinquent", "escrow_balance", "next_payment_due_date", "borrower_credit_score", "coborrower_credit_score" ]
+      "business_key" : [ "loan_number" ],
+      "tracked_columns" : [ "loan_status", "current_upb", "interest_rate", "next_payment_due_date", "escrow_balance", "delinquency_status", "servicer_name", "investor_name" ]
     },
     "validLayers" : [ "gold" ],
     "artifactHints" : {
@@ -102,8 +99,8 @@
     },
     "partitionBy" : [ "origination_date" ]
   }, {
-    "instanceId" : "01M2J7VT95PYJDVZ2F6V23CPH2",
-    "instanceName" : "Validate Loan Master",
+    "instanceId" : "01M2JB2NNY8NJ8WYTH1202B5PP",
+    "instanceName" : "ValidateLoanMaster",
     "blueprintKey" : "DQValidator",
     "category" : "DATA_QUALITY",
     "compositionRole" : "data_quality",
@@ -111,9 +108,9 @@
     "executionContext" : "dbt_spark",
     "emitStrategy" : "generate",
     "incomingEdges" : [ {
-      "targetPortName" : "data_to_validate",
       "sourcePortName" : "scd2_output",
-      "sourceInstanceId" : "01M2J7VT6GEGR18WYCH8Q209BS"
+      "targetPortName" : "data_to_validate",
+      "sourceInstanceId" : "01M2JB2NKCDV4NKDZNGNKR3KYR"
     } ],
     "params" : { },
     "validLayers" : [ "silver", "gold" ],
@@ -124,8 +121,29 @@
     },
     "partitionBy" : [ "origination_date" ]
   }, {
-    "instanceId" : "01M2J7VTC21ZG3Z07DAZF5YQJ8",
-    "instanceName" : "Advance Loan Master Date",
+    "instanceId" : "01M2JB2NS7MSPGF094KVBNKMEP",
+    "instanceName" : "LoanMasterSchedule",
+    "blueprintKey" : "ScheduleAndTriggers",
+    "category" : "ORCHESTRATION",
+    "compositionRole" : "orchestration_policy",
+    "resolvedLayer" : "control_plane",
+    "executionContext" : "dbt_spark",
+    "emitStrategy" : "config_only",
+    "incomingEdges" : [ ],
+    "params" : {
+      "schedule_type" : "cron",
+      "catchup_enabled" : false,
+      "cron_expression" : "0 7 * * 1-5",
+      "depends_on_past" : false
+    },
+    "validLayers" : [ "control_plane" ],
+    "artifactHints" : {
+      "emitStrategy" : "config_only",
+      "target" : "airflow_runtime"
+    }
+  }, {
+    "instanceId" : "01M2JB2NX1WYTC4SV1HERZYFKJ",
+    "instanceName" : "AdvanceLoanMasterDate",
     "blueprintKey" : "AdvanceTimeDimension",
     "category" : "ORCHESTRATION",
     "compositionRole" : "orchestration_action",
@@ -133,9 +151,9 @@
     "executionContext" : "dbt_spark",
     "emitStrategy" : "generate",
     "incomingEdges" : [ {
-      "targetPortName" : "trigger",
       "sourcePortName" : "validated_output",
-      "sourceInstanceId" : "01M2J7VT95PYJDVZ2F6V23CPH2"
+      "targetPortName" : "trigger",
+      "sourceInstanceId" : "01M2JB2NNY8NJ8WYTH1202B5PP"
     } ],
     "params" : {
       "advance_to" : "NBD",
@@ -151,19 +169,19 @@
     "mode" : "bigquery_input_publish",
     "inputDatasetTemplate" : "tenant_home_lending_servicing_gold_input",
     "servingDatasetTemplate" : "tenant_home_lending_servicing_gold",
-    "silverSources" : [ "clean_loan_master", "mask_loan_master_pii", "validate_loan_master" ],
-    "goldConsumers" : [ "loan_master_scd2" ]
+    "silverSources" : [ "cleanloanmaster", "maskloanmasterpii", "validateloanmaster" ],
+    "goldConsumers" : [ "loanmasterscd2" ]
   },
   "datasetEventPublications" : [ ],
   "datasetEventSubscriptions" : [ ],
   "datasetEventCondition" : "all",
   "advanceTimeContracts" : [ {
-    "instanceId" : "01M2J7VTC21ZG3Z07DAZF5YQJ8",
-    "instanceName" : "Advance Loan Master Date",
+    "instanceId" : "01M2JB2NX1WYTC4SV1HERZYFKJ",
+    "instanceName" : "AdvanceLoanMasterDate",
     "targetScope" : "dataset",
-    "scopeId" : "01M2J7VTC21ZG3Z07DAZF5YQJ8",
-    "stateBindingRef" : "time_state:dataset:01m2j7vtc21zg3z07dazf5yqj8",
-    "variableKey" : "pulse.time_state.tenant_home_lending.time_state_dataset_01m2j7vtc21zg3z07dazf5yqj8",
+    "scopeId" : "01M2JB2NX1WYTC4SV1HERZYFKJ",
+    "stateBindingRef" : "time_state:dataset:01m2jb2nx1wytc4sv1herzyfkj",
+    "variableKey" : "pulse.time_state.tenant_home_lending.time_state_dataset_01m2jb2nx1wytc4sv1herzyfkj",
     "calendarBindingRef" : "calendar:01jdom0servicing00000001",
     "calendarBundleUri" : "runtime/calendar/default-calendar-bundle.json",
     "calendarBundleHash" : "sha256:caea6a1cb3d8ad082793d4deff44ce013d56d73e02b89102a3f8c13fd439b5b8",
@@ -181,7 +199,7 @@
     "notesTemplate" : "",
     "source" : "AdvanceTimeDimension",
     "advancedBy" : "airflow:{{ dag.dag_id }}",
-    "poolName" : "pulse_time_state_time_state_dataset_01m2j7vtc21zg3z07dazf5yqj8",
+    "poolName" : "pulse_time_state_time_state_dataset_01m2jb2nx1wytc4sv1herzyfkj",
     "requiredPoolSlots" : 1,
     "calendarBundlePackaged" : true,
     "calendarBundleCoverageStart" : "1900-01-01",

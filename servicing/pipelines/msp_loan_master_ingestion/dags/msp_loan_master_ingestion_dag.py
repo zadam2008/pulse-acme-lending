@@ -31,9 +31,9 @@ default_args = {
 
 with DAG(
     dag_id='pulse_msp_loan_master_ingestion_v1',
-    description='Ingests daily MSP loan master extracts, cleans and conforms to silver, applies SCD2 history tracking, and validates data quality',
+    description='Daily ingestion of loan master data from MSP with SCD2 history tracking, PII masking, and data quality validation',
     default_args=default_args,
-    schedule=None,
+    schedule='0 7 * * 1-5',
     start_date=datetime(2026, 1, 1),
     catchup=False,
     # PULSE re-run contract: IDEMPOTENT_OVERWRITE (source: PLATFORM_DEFAULT)
@@ -41,13 +41,13 @@ with DAG(
     tags=['pulse', 'tenant-home-lending', 'servicing'],
 ) as dag:
 
-    with TaskGroup('ingest_msp_loan_master') as tg_ingest_msp_loan_master:
-        ingest_msp_loan_master = DataprocCreateBatchOperator(
-            task_id='ingest_msp_loan_master',
+    with TaskGroup('ingestloanmaster') as tg_ingestloanmaster:
+        ingestloanmaster = DataprocCreateBatchOperator(
+            task_id='ingestloanmaster',
             project_id='wf-pulse-agentic-dev2',
             region='us-central1',
             batch={
-                'pyspark_batch': {'main_python_file_uri': 'gs://pulse-home-lending-dev-files/servicing/pipelines/msp_loan_master_ingestion/jobs/ingestion/ingest_msp_loan_master_ingest.py'},
+                'pyspark_batch': {'main_python_file_uri': 'gs://pulse-home-lending-dev-files/servicing/pipelines/msp_loan_master_ingestion/jobs/ingestion/ingestloanmaster_ingest.py'},
                 'runtime_config': {'version': '2.2', 'properties': {
                     'spark.sql.adaptive.enabled': 'true',
                     'spark.dynamicAllocation.enabled': 'true',
@@ -73,40 +73,46 @@ with DAG(
             },
         )
 
-    with TaskGroup('clean_loan_master') as tg_clean_loan_master:
-        clean_loan_master = BashOperator(
-            task_id='clean_loan_master',
-            bash_command="D=$(mktemp -d /tmp/dbt.XXXXXX) && gcloud storage rsync -r gs://pulse-home-lending-dev-files/servicing/pipelines/msp_loan_master_ingestion/dbt_project \"$D\" && cd \"$D\" && test -d dbt_vendor/dbt_utils || { echo \"PULSE packaging bug: vendored dbt_vendor/dbt_utils is missing from the staged project; Hub packages are vendored at compile time\" >&2; exit 2; } && python -c \"import multiprocessing as mp, dbt.mp_context as M; M._MP_CONTEXT=mp.get_context('fork'); M.get_mp_context=lambda: M._MP_CONTEXT; from dbt.cli.main import cli; cli()\" build --select tag:msp_loan_master_ingestion,tag:clean_loan_master --target gcp --profiles-dir .",
+    with TaskGroup('cleanloanmaster') as tg_cleanloanmaster:
+        cleanloanmaster = BashOperator(
+            task_id='cleanloanmaster',
+            bash_command="D=$(mktemp -d /tmp/dbt.XXXXXX) && gcloud storage rsync -r gs://pulse-home-lending-dev-files/servicing/pipelines/msp_loan_master_ingestion/dbt_project \"$D\" && cd \"$D\" && test -d dbt_vendor/dbt_utils || { echo \"PULSE packaging bug: vendored dbt_vendor/dbt_utils is missing from the staged project; Hub packages are vendored at compile time\" >&2; exit 2; } && python -c \"import multiprocessing as mp, dbt.mp_context as M; M._MP_CONTEXT=mp.get_context('fork'); M.get_mp_context=lambda: M._MP_CONTEXT; from dbt.cli.main import cli; cli()\" build --select tag:msp_loan_master_ingestion,tag:cleanloanmaster --target gcp --profiles-dir .",
             env={'PULSE_BUSINESS_DATE': '{{ ds }}', 'PULSE_PROCESSING_TS': '{{ ts }}', 'PULSE_BQ_PROJECT': 'wf-pulse-agentic-dev2', 'PULSE_BQ_LOCATION': 'us-central1', 'PULSE_BQ_DATASET': 'pulse_silver'},
         )
 
-    with TaskGroup('mask_loan_master_pii') as tg_mask_loan_master_pii:
-        mask_loan_master_pii = BashOperator(
-            task_id='mask_loan_master_pii',
-            bash_command="D=$(mktemp -d /tmp/dbt.XXXXXX) && gcloud storage rsync -r gs://pulse-home-lending-dev-files/servicing/pipelines/msp_loan_master_ingestion/dbt_project \"$D\" && cd \"$D\" && test -d dbt_vendor/dbt_utils || { echo \"PULSE packaging bug: vendored dbt_vendor/dbt_utils is missing from the staged project; Hub packages are vendored at compile time\" >&2; exit 2; } && python -c \"import multiprocessing as mp, dbt.mp_context as M; M._MP_CONTEXT=mp.get_context('fork'); M.get_mp_context=lambda: M._MP_CONTEXT; from dbt.cli.main import cli; cli()\" build --select tag:msp_loan_master_ingestion,tag:mask_loan_master_pii --target gcp --profiles-dir .",
+    with TaskGroup('maskloanmasterpii') as tg_maskloanmasterpii:
+        maskloanmasterpii = BashOperator(
+            task_id='maskloanmasterpii',
+            bash_command="D=$(mktemp -d /tmp/dbt.XXXXXX) && gcloud storage rsync -r gs://pulse-home-lending-dev-files/servicing/pipelines/msp_loan_master_ingestion/dbt_project \"$D\" && cd \"$D\" && test -d dbt_vendor/dbt_utils || { echo \"PULSE packaging bug: vendored dbt_vendor/dbt_utils is missing from the staged project; Hub packages are vendored at compile time\" >&2; exit 2; } && python -c \"import multiprocessing as mp, dbt.mp_context as M; M._MP_CONTEXT=mp.get_context('fork'); M.get_mp_context=lambda: M._MP_CONTEXT; from dbt.cli.main import cli; cli()\" build --select tag:msp_loan_master_ingestion,tag:maskloanmasterpii --target gcp --profiles-dir .",
             env={'PULSE_BUSINESS_DATE': '{{ ds }}', 'PULSE_PROCESSING_TS': '{{ ts }}', 'PULSE_BQ_PROJECT': 'wf-pulse-agentic-dev2', 'PULSE_BQ_LOCATION': 'us-central1', 'PULSE_BQ_DATASET': 'pulse_silver'},
         )
 
-    with TaskGroup('loan_master_scd2') as tg_loan_master_scd2:
-        loan_master_scd2 = BashOperator(
-            task_id='loan_master_scd2',
-            bash_command="D=$(mktemp -d /tmp/dbt.XXXXXX) && gcloud storage rsync -r gs://pulse-home-lending-dev-files/servicing/pipelines/msp_loan_master_ingestion/dbt_project \"$D\" && cd \"$D\" && test -d dbt_vendor/dbt_utils || { echo \"PULSE packaging bug: vendored dbt_vendor/dbt_utils is missing from the staged project; Hub packages are vendored at compile time\" >&2; exit 2; } && python -c \"import multiprocessing as mp, dbt.mp_context as M; M._MP_CONTEXT=mp.get_context('fork'); M.get_mp_context=lambda: M._MP_CONTEXT; from dbt.cli.main import cli; cli()\" build --select tag:msp_loan_master_ingestion,tag:loan_master_scd2 --target gcp --profiles-dir .",
+    with TaskGroup('loanmasterscd2') as tg_loanmasterscd2:
+        loanmasterscd2 = BashOperator(
+            task_id='loanmasterscd2',
+            bash_command="D=$(mktemp -d /tmp/dbt.XXXXXX) && gcloud storage rsync -r gs://pulse-home-lending-dev-files/servicing/pipelines/msp_loan_master_ingestion/dbt_project \"$D\" && cd \"$D\" && test -d dbt_vendor/dbt_utils || { echo \"PULSE packaging bug: vendored dbt_vendor/dbt_utils is missing from the staged project; Hub packages are vendored at compile time\" >&2; exit 2; } && python -c \"import multiprocessing as mp, dbt.mp_context as M; M._MP_CONTEXT=mp.get_context('fork'); M.get_mp_context=lambda: M._MP_CONTEXT; from dbt.cli.main import cli; cli()\" build --select tag:msp_loan_master_ingestion,tag:loanmasterscd2 --target gcp --profiles-dir .",
             env={'PULSE_BUSINESS_DATE': '{{ ds }}', 'PULSE_PROCESSING_TS': '{{ ts }}', 'PULSE_BQ_PROJECT': 'wf-pulse-agentic-dev2', 'PULSE_BQ_LOCATION': 'us-central1', 'PULSE_BQ_DATASET': 'pulse_gold'},
         )
 
-    with TaskGroup('validate_loan_master') as tg_validate_loan_master:
-        validate_loan_master = BashOperator(
-            task_id='validate_loan_master',
-            bash_command="D=$(mktemp -d /tmp/dbt.XXXXXX) && gcloud storage rsync -r gs://pulse-home-lending-dev-files/servicing/pipelines/msp_loan_master_ingestion/dbt_project \"$D\" && cd \"$D\" && test -d dbt_vendor/dbt_utils || { echo \"PULSE packaging bug: vendored dbt_vendor/dbt_utils is missing from the staged project; Hub packages are vendored at compile time\" >&2; exit 2; } && python -c \"import multiprocessing as mp, dbt.mp_context as M; M._MP_CONTEXT=mp.get_context('fork'); M.get_mp_context=lambda: M._MP_CONTEXT; from dbt.cli.main import cli; cli()\" build --select tag:msp_loan_master_ingestion,tag:validate_loan_master --target gcp --profiles-dir .",
+    with TaskGroup('validateloanmaster') as tg_validateloanmaster:
+        validateloanmaster = BashOperator(
+            task_id='validateloanmaster',
+            bash_command="D=$(mktemp -d /tmp/dbt.XXXXXX) && gcloud storage rsync -r gs://pulse-home-lending-dev-files/servicing/pipelines/msp_loan_master_ingestion/dbt_project \"$D\" && cd \"$D\" && test -d dbt_vendor/dbt_utils || { echo \"PULSE packaging bug: vendored dbt_vendor/dbt_utils is missing from the staged project; Hub packages are vendored at compile time\" >&2; exit 2; } && python -c \"import multiprocessing as mp, dbt.mp_context as M; M._MP_CONTEXT=mp.get_context('fork'); M.get_mp_context=lambda: M._MP_CONTEXT; from dbt.cli.main import cli; cli()\" build --select tag:msp_loan_master_ingestion,tag:validateloanmaster --target gcp --profiles-dir .",
             env={'PULSE_BUSINESS_DATE': '{{ ds }}', 'PULSE_PROCESSING_TS': '{{ ts }}', 'PULSE_BQ_PROJECT': 'wf-pulse-agentic-dev2', 'PULSE_BQ_LOCATION': 'us-central1', 'PULSE_BQ_DATASET': 'pulse_silver'},
         )
 
-    with TaskGroup('advance_loan_master_date') as tg_advance_loan_master_date:
+    with TaskGroup('loanmasterschedule') as tg_loanmasterschedule:
+        # Codegen engine: CodegenOpEngine
+        # DAG-only blueprint: ScheduleAndTriggers
+        # schedule_interval='0 7 * * 1-5'
+        pass
+
+    with TaskGroup('advanceloanmasterdate') as tg_advanceloanmasterdate:
         # Codegen engine: CodegenOpEngine
         # DAG-only blueprint: AdvanceTimeDimension
-        # AdvanceTimeDimension 'advance_loan_master_date': NOT IMPLEMENTED - no time-state advance was performed. See issue #118.
-        advance_loan_master_date = PythonOperator(
-            task_id='advance_loan_master_date',
+        # AdvanceTimeDimension 'advanceloanmasterdate': NOT IMPLEMENTED - no time-state advance was performed. See issue #118.
+        advanceloanmasterdate = PythonOperator(
+            task_id='advanceloanmasterdate',
             python_callable=pulse_advance_time_not_implemented,
             do_xcom_push=False,
         )
@@ -122,13 +128,13 @@ with DAG(
         do_xcom_push=False,
     )
     # Intra-layer task group dependencies (from port wirings)
-    tg_clean_loan_master >> tg_mask_loan_master_pii
-    tg_loan_master_scd2 >> tg_validate_loan_master
-    tg_validate_loan_master >> tg_advance_loan_master_date
-    tg_ingest_msp_loan_master >> gx_bronze_silver_gate
-    gx_bronze_silver_gate >> tg_clean_loan_master
-    gx_bronze_silver_gate >> tg_mask_loan_master_pii
-    tg_clean_loan_master >> gx_silver_gold_gate
-    tg_mask_loan_master_pii >> gx_silver_gold_gate
-    gx_silver_gold_gate >> tg_loan_master_scd2
-    gx_silver_gold_gate >> tg_validate_loan_master
+    tg_cleanloanmaster >> tg_maskloanmasterpii
+    tg_validateloanmaster >> tg_advanceloanmasterdate
+    tg_loanmasterscd2 >> tg_validateloanmaster
+    tg_ingestloanmaster >> gx_bronze_silver_gate
+    gx_bronze_silver_gate >> tg_cleanloanmaster
+    gx_bronze_silver_gate >> tg_maskloanmasterpii
+    tg_cleanloanmaster >> gx_silver_gold_gate
+    tg_maskloanmasterpii >> gx_silver_gold_gate
+    gx_silver_gold_gate >> tg_loanmasterscd2
+    gx_silver_gold_gate >> tg_validateloanmaster
