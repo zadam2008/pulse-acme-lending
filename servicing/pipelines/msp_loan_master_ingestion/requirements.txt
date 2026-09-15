@@ -1,0 +1,9 @@
+# PULSE Pipeline Dependencies (GCP / cgdev2 — dbt-bigquery + BigQuery-managed Iceberg)
+# Auto-generated
+apache-airflow>=2.8.0
+apache-airflow-providers-google>=10.0.0
+apache-airflow-providers-common-sql>=1.14.0
+google-cloud-secret-manager>=2.20.2
+google-cloud-bigquery>=3.20.0
+dbt-core>=1.10.0
+dbt-bigquery>=1.10.0

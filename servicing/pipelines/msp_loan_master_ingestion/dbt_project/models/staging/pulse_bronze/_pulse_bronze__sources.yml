@@ -1,0 +1,14 @@
+# PULSE-generated source declaration for raw bronze ingest tables.
+# Tables are BigQuery-managed Iceberg tables written by PySpark ingestion jobs
+# (jobs/ingestion/*_ingest.py) via the unified BigQuery Metastore catalog, resolved
+# by dbt-bigquery source() as <project>.pulse_bronze.<table>.
+
+version: 2
+
+sources:
+  - name: pulse_bronze
+    schema: pulse_bronze
+    description: Raw ingest tables in the pulse_bronze managed-Iceberg dataset
+    tables:
+      - name: ingestloanmaster
+        description: Ingested by IngestLoanMaster

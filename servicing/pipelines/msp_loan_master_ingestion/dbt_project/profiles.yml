@@ -1,0 +1,14 @@
+# PULSE-managed (ADR 0026): dbt-bigquery + BigQuery-managed Iceberg runtime profile.
+# Selected by the GCP DAG's `dbt build --target gcp`. project/dataset/location are supplied
+# by PULSE_BQ_* env vars set on the dbt task. method: oauth -> Composer worker SA ADC.
+home_lending:
+  target: gcp
+  outputs:
+    gcp:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('PULSE_BQ_PROJECT', '') }}"
+      dataset: "{{ env_var('PULSE_BQ_DATASET', 'pulse_dbt') }}"
+      location: "{{ env_var('PULSE_BQ_LOCATION', 'us-central1') }}"
+      threads: "{{ env_var('DBT_BQ_THREADS', '4') | int }}"
+      priority: interactive

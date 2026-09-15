@@ -1,0 +1,20 @@
+# PULSE-managed (ADR 0026): dbt-bigquery BigQuery-managed Iceberg catalog integration.
+# A model that sets config(catalog_name='pulse_iceberg') materializes as a
+# managed-Iceberg BigQuery table whose data files land under external_volume below —
+# the same lake warehouse the generated PySpark iceberg sink writes to. Requires
+# dbt-bigquery>=1.10 (catalogs.yml support). dbt-bigquery itself emits `with connection
+# default` for the Iceberg CREATE TABLE (there is NO connection field on this
+# write_integration — see BigLakeCatalogIntegration), so the BigQuery project must have a
+# DEFAULT Cloud-Resource connection designated (ALTER PROJECT … default_cloud_resource_
+# connection_id) whose SA holds storage.legacyBucketWriter+legacyObjectOwner on the lake
+# bucket — a runtime/IAM prerequisite, not a codegen field (see GcpDbt). The catalog `name`
+# below MUST equal the models' catalog_name, else dbt falls back to a standard table.
+catalogs:
+  - name: pulse_iceberg
+    active_write_integration: biglake_metastore
+    write_integrations:
+      - name: biglake_metastore
+        external_volume: 'gs://pulse-home-lending-dev-lake/_iceberg_warehouse'
+        table_format: iceberg
+        file_format: parquet
+        catalog_type: biglake_metastore

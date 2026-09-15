@@ -1,0 +1,5 @@
+dbt-labs/dbt_utils==1.4.1
+source=https://github.com/dbt-labs/dbt-utils/tree/1.4.1
+license=Apache-2.0
+vendored_at=dbt_vendor/dbt_utils
+packages-install-path=dbt_vendor

@@ -1,0 +1,7 @@
+selectors:
+  - name: msp_loan_master_ingestion
+    description: All dbt models generated for pipeline msp_loan_master_ingestion
+    definition:
+      union:
+        - method: tag
+          value: msp_loan_master_ingestion
