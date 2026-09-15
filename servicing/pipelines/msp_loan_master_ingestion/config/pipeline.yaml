@@ -12,10 +12,10 @@ steps:
     blueprint: FileIngestion
     category: INGESTION
     params:
-      sor_id: 01M2JAY80N84R93H26AGMR5BDG
-      dataset_ids: [01M2JAYHG02N3K2MG9M2GHDXPW]
+      sor_id: 01M2JD67VCQCVNSY83AC2980WR
+      dataset_ids: [01M2JD7MEK9N02ER0S1F9RKMXC]
       filename_pattern: loan_master_YYYYMMDD.csv
-      connector_instance_id: 01M2JAYD4PCCTVCDWKZKANYKVQ
+      connector_instance_id: 01M2JD6KJRGHC2DW3AS5HN865S
   - name: CleanLoanMaster
     blueprint: BronzeToSilverCleaning
     category: TRANSFORM
@@ -23,27 +23,27 @@ steps:
     blueprint: PIIMasking
     category: TRANSFORM
     params:
-      columns_to_mask: [borrower_first_name, borrower_last_name, borrower_ssn, borrower_dob, borrower_email, borrower_phone, coborrower_first_name, coborrower_last_name, coborrower_ssn, property_address, mailing_address]
+      columns_to_mask: [borrower_first_name, borrower_last_name, coborrower_first_name, coborrower_last_name, borrower_ssn_masked, borrower_dob, borrower_email, borrower_phone, property_address_line1, property_zip]
   - name: LoanMasterSCD2
     blueprint: SCD2Dimension
     category: MODELING
     params:
-      business_key: [loan_number]
-      tracked_columns: [loan_status, current_upb, interest_rate, next_payment_due_date, escrow_balance, delinquency_status, servicer_name, investor_name]
+      business_key: [loan_id]
+      tracked_columns: [loan_status, current_upb, interest_rate, escrow_balance, months_delinquent, borrower_credit_score, next_payment_due_date]
   - name: ValidateLoanMaster
     blueprint: DQValidator
     category: DATA_QUALITY
-  - name: LoanMasterSchedule
-    blueprint: ScheduleAndTriggers
-    category: ORCHESTRATION
-    params:
-      schedule_type: cron
-      catchup_enabled: false
-      cron_expression: 0 7 * * 1-5
-      depends_on_past: false
   - name: AdvanceLoanMasterDate
     blueprint: AdvanceTimeDimension
     category: ORCHESTRATION
     params:
       advance_to: NBD
       target_scope: dataset
+  - name: LoanMasterSchedule
+    blueprint: ScheduleAndTriggers
+    category: ORCHESTRATION
+    params:
+      schedule_type: cron
+      catchup_enabled: false
+      cron_expression: 0 6 * * 1-5
+      depends_on_past: false

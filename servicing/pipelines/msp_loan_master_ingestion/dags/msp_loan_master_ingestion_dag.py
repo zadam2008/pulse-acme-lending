@@ -31,9 +31,9 @@ default_args = {
 
 with DAG(
     dag_id='pulse_msp_loan_master_ingestion_v1',
-    description='Daily ingestion of loan master data from MSP with SCD2 history tracking, PII masking, and data quality validation',
+    description='Ingests daily loan master extracts from MSP, cleans, masks PII, tracks historical changes via SCD2, and validates before publishing to gold.',
     default_args=default_args,
-    schedule='0 7 * * 1-5',
+    schedule='0 6 * * 1-5',
     start_date=datetime(2026, 1, 1),
     catchup=False,
     # PULSE re-run contract: IDEMPOTENT_OVERWRITE (source: PLATFORM_DEFAULT)
@@ -101,12 +101,6 @@ with DAG(
             env={'PULSE_BUSINESS_DATE': '{{ ds }}', 'PULSE_PROCESSING_TS': '{{ ts }}', 'PULSE_BQ_PROJECT': 'wf-pulse-agentic-dev2', 'PULSE_BQ_LOCATION': 'us-central1', 'PULSE_BQ_DATASET': 'pulse_silver'},
         )
 
-    with TaskGroup('loanmasterschedule') as tg_loanmasterschedule:
-        # Codegen engine: CodegenOpEngine
-        # DAG-only blueprint: ScheduleAndTriggers
-        # schedule_interval='0 7 * * 1-5'
-        pass
-
     with TaskGroup('advanceloanmasterdate') as tg_advanceloanmasterdate:
         # Codegen engine: CodegenOpEngine
         # DAG-only blueprint: AdvanceTimeDimension
@@ -116,6 +110,12 @@ with DAG(
             python_callable=pulse_advance_time_not_implemented,
             do_xcom_push=False,
         )
+
+    with TaskGroup('loanmasterschedule') as tg_loanmasterschedule:
+        # Codegen engine: CodegenOpEngine
+        # DAG-only blueprint: ScheduleAndTriggers
+        # schedule_interval='0 6 * * 1-5'
+        pass
 
     gx_bronze_silver_gate = PythonOperator(
         task_id='gx_bronze_silver_gate',
@@ -129,8 +129,8 @@ with DAG(
     )
     # Intra-layer task group dependencies (from port wirings)
     tg_cleanloanmaster >> tg_maskloanmasterpii
-    tg_validateloanmaster >> tg_advanceloanmasterdate
     tg_loanmasterscd2 >> tg_validateloanmaster
+    tg_validateloanmaster >> tg_advanceloanmasterdate
     tg_ingestloanmaster >> gx_bronze_silver_gate
     gx_bronze_silver_gate >> tg_cleanloanmaster
     gx_bronze_silver_gate >> tg_maskloanmasterpii
