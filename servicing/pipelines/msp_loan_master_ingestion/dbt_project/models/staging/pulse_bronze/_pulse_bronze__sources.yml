@@ -10,5 +10,5 @@ sources:
     schema: pulse_bronze
     description: Raw ingest tables in the pulse_bronze managed-Iceberg dataset
     tables:
-      - name: ingestloanmaster
-        description: Ingested by IngestLoanMaster
+      - name: ingest_msp_loan_master
+        description: Ingested by Ingest MSP Loan Master

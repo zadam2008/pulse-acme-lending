@@ -2,6 +2,6 @@
   "mode" : "bigquery_input_publish",
   "inputDatasetTemplate" : "tenant_home_lending_servicing_gold_input",
   "servingDatasetTemplate" : "tenant_home_lending_servicing_gold",
-  "silverSources" : [ "cleanloanmaster", "maskloanpii", "validateloanmaster" ],
-  "goldConsumers" : [ "loanmasterscd2" ]
+  "silverSources" : [ "clean_loan_master", "mask_loan_master_pii", "validate_loan_master" ],
+  "goldConsumers" : [ "loan_master_scd2" ]
 }

@@ -8,38 +8,35 @@ pipeline:
   domain: Servicing
 
 steps:
-  - name: IngestLoanMaster
+  - name: Ingest MSP Loan Master
     blueprint: FileIngestion
     category: INGESTION
     params:
-      sor_id: 01M2J3RARA9RVGBQEPAM02TS0T
+      sor_id: 01M2J7QXWZ493G4A040CMS6D0D
       delimiter: ,
       has_header: true
-      dataset_ids: [01M2J3SRGSZECYDSGETPJD3EE0]
+      dataset_ids: [01M2J7S6J85Q2W7653GY43WNNN]
       filename_pattern: loan_master_YYYYMMDD.csv
-      connector_instance_id: 01M2J3RHTJCT7Z5SVZ9ZCY9V26
-  - name: CleanLoanMaster
+      connector_instance_id: 01M2J7R38XXHXCQ48JXEYDBR4Q
+  - name: Clean Loan Master
     blueprint: BronzeToSilverCleaning
     category: TRANSFORM
-  - name: MaskLoanPII
+  - name: Mask Loan Master PII
     blueprint: PIIMasking
     category: TRANSFORM
     params:
-      columns_to_mask: [borrower_first_name, borrower_last_name, borrower_ssn_masked, borrower_email, borrower_phone, borrower_dob, coborrower_first_name, coborrower_last_name, property_address_line1]
+      columns_to_mask: [borrower_first_name, borrower_last_name, borrower_ssn_masked, borrower_email, borrower_phone, borrower_dob, coborrower_first_name, coborrower_last_name, property_address_line1, property_zip]
       masking_strategy: hash
-  - name: LoanMasterSCD2
+  - name: Loan Master SCD2
     blueprint: SCD2Dimension
     category: MODELING
     params:
       business_key: [loan_id]
-      tracked_columns: [current_upb, interest_rate, loan_status, months_delinquent, escrow_balance, next_payment_due_date, ltv_ratio, borrower_credit_score]
-  - name: ValidateLoanMaster
+      tracked_columns: [loan_status, current_upb, interest_rate, servicer_name, investor_name, months_delinquent, escrow_balance, next_payment_due_date, borrower_credit_score, coborrower_credit_score]
+  - name: Validate Loan Master
     blueprint: DQValidator
     category: DATA_QUALITY
-    params:
-      on_failure: quarantine
-      threshold_percent: 99.0
-  - name: AdvanceLoanMasterDate
+  - name: Advance Loan Master Date
     blueprint: AdvanceTimeDimension
     category: ORCHESTRATION
     params:
