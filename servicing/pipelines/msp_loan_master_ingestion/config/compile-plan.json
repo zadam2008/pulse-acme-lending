@@ -1,11 +1,11 @@
 {
   "pipelineId" : "01M2JZ3MJMJR1HTEECCF82SGRT",
-  "versionId" : "01M2JZ3MJNTN6B7MVP7Y1CRXQC",
+  "versionId" : "01M2K8NFCFRESA12ZK3SG8SYC2",
   "domainId" : "01JDOM0SERVICING00000001",
   "domainName" : "Servicing",
   "namespace" : "servicing/pipelines/msp_loan_master_ingestion",
   "nodes" : [ {
-    "instanceId" : "01M2JZ3N37T4KE2YWSM53WHCM6",
+    "instanceId" : "01M2K8NFCSTWW6HVHRZ5N0SPC8",
     "instanceName" : "SenseLoanMasterFile",
     "blueprintKey" : "FileArrivalSensor",
     "category" : "ORCHESTRATION",
@@ -26,7 +26,7 @@
       "target" : "airflow_runtime"
     }
   }, {
-    "instanceId" : "01M2JZ3N7S4FYXKWV0GHY1MT90",
+    "instanceId" : "01M2K8NFCTBA13FCRBFSTV5DFB",
     "instanceName" : "IngestLoanMaster",
     "blueprintKey" : "FileIngestion",
     "category" : "INGESTION",
@@ -35,9 +35,9 @@
     "executionContext" : "spark",
     "emitStrategy" : "generate",
     "incomingEdges" : [ {
-      "sourceInstanceId" : "01M2JZ3N37T4KE2YWSM53WHCM6",
+      "targetPortName" : "upstream",
       "sourcePortName" : "ready_signal",
-      "targetPortName" : "upstream"
+      "sourceInstanceId" : "01M2K8NFCSTWW6HVHRZ5N0SPC8"
     } ],
     "params" : {
       "sor_id" : "01M2JYYT301W6E9TBGCQ3N4SND",
@@ -56,7 +56,7 @@
     },
     "partitionBy" : [ "origination_date" ]
   }, {
-    "instanceId" : "01M2JZ3NCJVB97BSM5HFQQDGJG",
+    "instanceId" : "01M2K8NFCTBA13FCRBFSTV5DFC",
     "instanceName" : "DetectLoanMasterDrift",
     "blueprintKey" : "SchemaDriftDetection",
     "category" : "DATA_QUALITY",
@@ -65,9 +65,9 @@
     "executionContext" : "dbt_spark",
     "emitStrategy" : "generate",
     "incomingEdges" : [ {
-      "sourceInstanceId" : "01M2JZ3N7S4FYXKWV0GHY1MT90",
+      "targetPortName" : "incoming_data",
       "sourcePortName" : "raw_output",
-      "targetPortName" : "incoming_data"
+      "sourceInstanceId" : "01M2K8NFCTBA13FCRBFSTV5DFB"
     } ],
     "params" : {
       "drift_policy" : "warn",
@@ -238,7 +238,7 @@
     },
     "partitionBy" : [ "origination_date" ]
   }, {
-    "instanceId" : "01M2JZ3NFV8NVQRARWZXAJ21XB",
+    "instanceId" : "01M2K8NFCVF3JGW79GCD118RW2",
     "instanceName" : "CleanLoanMaster",
     "blueprintKey" : "BronzeToSilverCleaning",
     "category" : "TRANSFORM",
@@ -247,9 +247,9 @@
     "executionContext" : "dbt_spark",
     "emitStrategy" : "generate",
     "incomingEdges" : [ {
-      "sourceInstanceId" : "01M2JZ3N7S4FYXKWV0GHY1MT90",
+      "targetPortName" : "raw_input",
       "sourcePortName" : "raw_output",
-      "targetPortName" : "raw_input"
+      "sourceInstanceId" : "01M2K8NFCTBA13FCRBFSTV5DFB"
     } ],
     "params" : { },
     "validLayers" : [ "silver" ],
@@ -260,7 +260,7 @@
     },
     "partitionBy" : [ "origination_date" ]
   }, {
-    "instanceId" : "01M2JZ3NMJ0TCZ1DTZGCJDE8XS",
+    "instanceId" : "01M2K8NFCVF3JGW79GCD118RW3",
     "instanceName" : "MaskLoanMasterPII",
     "blueprintKey" : "PIIMasking",
     "category" : "TRANSFORM",
@@ -269,12 +269,12 @@
     "executionContext" : "dbt_spark",
     "emitStrategy" : "generate",
     "incomingEdges" : [ {
-      "sourceInstanceId" : "01M2JZ3NFV8NVQRARWZXAJ21XB",
+      "targetPortName" : "sensitive_data",
       "sourcePortName" : "cleaned_output",
-      "targetPortName" : "sensitive_data"
+      "sourceInstanceId" : "01M2K8NFCVF3JGW79GCD118RW2"
     } ],
     "params" : {
-      "columns_to_mask" : [ "borrower_first_name", "borrower_last_name", "borrower_ssn", "borrower_email", "borrower_phone", "co_borrower_first_name", "co_borrower_last_name" ],
+      "columns_to_mask" : [ "borrower_first_name", "borrower_last_name", "borrower_email", "borrower_phone" ],
       "masking_strategy" : "hash"
     },
     "validLayers" : [ "silver" ],
@@ -285,7 +285,7 @@
     },
     "partitionBy" : [ "origination_date" ]
   }, {
-    "instanceId" : "01M2JZ3NY2G9D822GM76HAF11S",
+    "instanceId" : "01M2K8NFCVF3JGW79GCD118RW4",
     "instanceName" : "ValidateLoanMaster",
     "blueprintKey" : "DQValidator",
     "category" : "DATA_QUALITY",
@@ -294,9 +294,9 @@
     "executionContext" : "dbt_spark",
     "emitStrategy" : "generate",
     "incomingEdges" : [ {
-      "sourceInstanceId" : "01M2JZ3NMJ0TCZ1DTZGCJDE8XS",
+      "targetPortName" : "data_to_validate",
       "sourcePortName" : "masked_output",
-      "targetPortName" : "data_to_validate"
+      "sourceInstanceId" : "01M2K8NFCVF3JGW79GCD118RW3"
     } ],
     "params" : {
       "on_failure" : "quarantine",
@@ -310,7 +310,7 @@
     },
     "partitionBy" : [ "origination_date" ]
   }, {
-    "instanceId" : "01M2JZ3P8Q7NYQMSZVPPC98QXE",
+    "instanceId" : "01M2K8NFCW6YW36AYRRPZV7EW7",
     "instanceName" : "LoanMasterSCD2",
     "blueprintKey" : "SCD2Dimension",
     "category" : "MODELING",
@@ -319,13 +319,13 @@
     "executionContext" : "dbt_spark",
     "emitStrategy" : "generate",
     "incomingEdges" : [ {
-      "sourceInstanceId" : "01M2JZ3NY2G9D822GM76HAF11S",
+      "targetPortName" : "source_data",
       "sourcePortName" : "validated_output",
-      "targetPortName" : "source_data"
+      "sourceInstanceId" : "01M2K8NFCVF3JGW79GCD118RW4"
     } ],
     "params" : {
       "business_key" : [ "loan_id" ],
-      "tracked_columns" : [ "loan_status", "current_upb", "interest_rate", "next_payment_due_date", "escrow_balance", "months_delinquent", "borrower_address", "servicer_code" ]
+      "tracked_columns" : [ "loan_status", "current_upb", "interest_rate", "next_payment_due_date", "escrow_balance", "months_delinquent" ]
     },
     "validLayers" : [ "gold" ],
     "artifactHints" : {
@@ -335,7 +335,7 @@
     },
     "partitionBy" : [ "origination_date" ]
   }, {
-    "instanceId" : "01M2JZ3PMRJDGTZ6YZ32VGSXED",
+    "instanceId" : "01M2K8NFCW6YW36AYRRPZV7EW8",
     "instanceName" : "CheckLoanMasterFreshness",
     "blueprintKey" : "FreshnessChecks",
     "category" : "DATA_QUALITY",
@@ -344,9 +344,9 @@
     "executionContext" : "dbt_spark",
     "emitStrategy" : "generate",
     "incomingEdges" : [ {
-      "sourceInstanceId" : "01M2JZ3P8Q7NYQMSZVPPC98QXE",
+      "targetPortName" : "monitored_dataset",
       "sourcePortName" : "scd2_output",
-      "targetPortName" : "monitored_dataset"
+      "sourceInstanceId" : "01M2K8NFCW6YW36AYRRPZV7EW7"
     } ],
     "params" : {
       "timestamp_column" : "last_payment_date",
@@ -360,7 +360,7 @@
     },
     "partitionBy" : [ "origination_date" ]
   }, {
-    "instanceId" : "01M2JZ3Q1XHSG2C57H5M3PTB8R",
+    "instanceId" : "01M2K8NFCXKM40MVYWWQQY878D",
     "instanceName" : "ScheduleLoanMaster",
     "blueprintKey" : "ScheduleAndTriggers",
     "category" : "ORCHESTRATION",
@@ -381,7 +381,7 @@
       "target" : "airflow_runtime"
     }
   }, {
-    "instanceId" : "01M2JZ3QC236P8DMXH8Y0KBYZ4",
+    "instanceId" : "01M2K8NFCXKM40MVYWWQQY878E",
     "instanceName" : "AdvanceLoanMasterDate",
     "blueprintKey" : "AdvanceTimeDimension",
     "category" : "ORCHESTRATION",
@@ -390,9 +390,9 @@
     "executionContext" : "dbt_spark",
     "emitStrategy" : "generate",
     "incomingEdges" : [ {
-      "sourceInstanceId" : "01M2JZ3P8Q7NYQMSZVPPC98QXE",
+      "targetPortName" : "trigger",
       "sourcePortName" : "scd2_output",
-      "targetPortName" : "trigger"
+      "sourceInstanceId" : "01M2K8NFCW6YW36AYRRPZV7EW7"
     } ],
     "params" : {
       "advance_to" : "NBD",
@@ -415,15 +415,15 @@
   "datasetEventSubscriptions" : [ ],
   "datasetEventCondition" : "all",
   "advanceTimeContracts" : [ {
-    "instanceId" : "01M2JZ3QC236P8DMXH8Y0KBYZ4",
+    "instanceId" : "01M2K8NFCXKM40MVYWWQQY878E",
     "instanceName" : "AdvanceLoanMasterDate",
     "targetScope" : "dataset",
-    "scopeId" : "01M2JZ3QC236P8DMXH8Y0KBYZ4",
-    "stateBindingRef" : "time_state:dataset:01m2jz3qc236p8dmxh8y0kbyz4",
-    "variableKey" : "pulse.time_state.tenant_home_lending.time_state_dataset_01m2jz3qc236p8dmxh8y0kbyz4",
+    "scopeId" : "01M2K8NFCXKM40MVYWWQQY878E",
+    "stateBindingRef" : "time_state:dataset:01m2k8nfcxkm40mvywwqqy878e",
+    "variableKey" : "pulse.time_state.tenant_home_lending.time_state_dataset_01m2k8nfcxkm40mvywwqqy878e",
     "calendarBindingRef" : "calendar:01jdom0servicing00000001",
     "calendarBundleUri" : "runtime/calendar/default-calendar-bundle.json",
-    "calendarBundleHash" : "sha256:b259f5325852842d969dca28b43d043a81b717a96b4e2ae64011441544d3e1e4",
+    "calendarBundleHash" : "sha256:caea6a1cb3d8ad082793d4deff44ce013d56d73e02b89102a3f8c13fd439b5b8",
     "calendarId" : "US-FED",
     "advanceMode" : "next_interval",
     "requestedAsofExpr" : "NBD",
@@ -438,7 +438,7 @@
     "notesTemplate" : "",
     "source" : "AdvanceTimeDimension",
     "advancedBy" : "airflow:{{ dag.dag_id }}",
-    "poolName" : "pulse_time_state_time_state_dataset_01m2jz3qc236p8dmxh8y0kbyz4",
+    "poolName" : "pulse_time_state_time_state_dataset_01m2k8nfcxkm40mvywwqqy878e",
     "requiredPoolSlots" : 1,
     "calendarBundlePackaged" : true,
     "calendarBundleCoverageStart" : "1900-01-01",

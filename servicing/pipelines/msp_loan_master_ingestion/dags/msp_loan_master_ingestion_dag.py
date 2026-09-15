@@ -30,7 +30,7 @@ default_args = {
 }
 
 with DAG(
-    dag_id='pulse_msp_loan_master_ingestion_v1',
+    dag_id='pulse_msp_loan_master_ingestion_v2',
     description='Daily ingestion of MSP loan master file with PII masking, SCD2 history tracking, and data quality validation',
     default_args=default_args,
     schedule='0 6 * * 1-5',
@@ -44,7 +44,7 @@ with DAG(
     with TaskGroup('senseloanmasterfile') as tg_senseloanmasterfile:
         # Codegen engine: CodegenOpEngine
         # DAG-only blueprint: FileArrivalSensor
-        senseloanmasterfile = GCSObjectsWithPrefixExistenceSensor(task_id='senseloanmasterfile', bucket='pulse-home-lending-dev-files', prefix='servicing/msp/msp-loan-master-ingestion/SRC/loan_master_/loan_master_')
+        senseloanmasterfile = GCSObjectsWithPrefixExistenceSensor(task_id='senseloanmasterfile', bucket='pulse-home-lending-dev-files', prefix='servicing/msp/msp-loan-master-ingestion/SRC/loan_master_')
 
     with TaskGroup('ingestloanmaster') as tg_ingestloanmaster:
         ingestloanmaster = DataprocCreateBatchOperator(

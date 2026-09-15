@@ -4,7 +4,7 @@
 pipeline:
   name: MSP Loan Master Ingestion
   slug: msp_loan_master_ingestion
-  version: 1
+  version: 2
   domain: Servicing
 
 steps:
@@ -41,7 +41,7 @@ steps:
     blueprint: PIIMasking
     category: TRANSFORM
     params:
-      columns_to_mask: [borrower_first_name, borrower_last_name, borrower_ssn, borrower_email, borrower_phone, co_borrower_first_name, co_borrower_last_name]
+      columns_to_mask: [borrower_first_name, borrower_last_name, borrower_email, borrower_phone]
       masking_strategy: hash
   - name: ValidateLoanMaster
     blueprint: DQValidator
@@ -54,7 +54,7 @@ steps:
     category: MODELING
     params:
       business_key: [loan_id]
-      tracked_columns: [loan_status, current_upb, interest_rate, next_payment_due_date, escrow_balance, months_delinquent, borrower_address, servicer_code]
+      tracked_columns: [loan_status, current_upb, interest_rate, next_payment_due_date, escrow_balance, months_delinquent]
   - name: CheckLoanMasterFreshness
     blueprint: FreshnessChecks
     category: DATA_QUALITY
