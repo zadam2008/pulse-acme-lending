@@ -1,4 +1,5 @@
-{# PULSE-managed. Delta table materialization for Spark local and deployed runtimes. #}
+{# PULSE-managed. Parquet (Hive) table materialization for the DPC Spark runtime.
+   ADR 0026 retired Delta: DPC = Hive/Parquet on S3. Macro name kept for compatibility. #}
 {% materialization pulse_delta_table, adapter='spark' %}
     {%- set identifier = model['alias'] -%}
     {%- set location_root = config.get('location_root') -%}
@@ -21,7 +22,7 @@
 
     {%- call statement('main') -%}
         CREATE TABLE {{ target_relation }}
-        USING DELTA
+        USING PARQUET
         LOCATION '{{ target_location }}'
         AS
         {{ compiled_code }}
