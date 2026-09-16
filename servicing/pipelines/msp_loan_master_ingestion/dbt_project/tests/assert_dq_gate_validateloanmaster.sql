@@ -17,9 +17,9 @@
 {% do log('PULSE_DIAG {"v":1,"step":"assert_dq_gate_validateloanmaster","event":"dq_rule","rule":"ExpectColumnPairValuesAToBeGreaterThanB","kind":"column_pair_compare","columns":["maturity_date","origination_date"],"expected":"maturity_date > origination_date","authored_on_failure":"block","resolved_on_failure":"block","mostly":1.0,"fail_closed":false,"idx":11,"row_level":true}', info=True) %}
 {% do log('PULSE_DIAG {"v":1,"step":"assert_dq_gate_validateloanmaster","event":"dq_rule","rule":"ExpectColumnPairValuesAToBeGreaterThanB","kind":"column_pair_compare","columns":["original_loan_amount","current_upb"],"expected":"original_loan_amount > current_upb","authored_on_failure":"warn","resolved_on_failure":"warn","mostly":1.0,"fail_closed":false,"idx":12,"row_level":true}', info=True) %}
 {% do log('PULSE_DIAG {"v":1,"step":"assert_dq_gate_validateloanmaster","event":"dq_rule","rule":"ExpectColumnPairValuesAToBeGreaterThanB","kind":"column_pair_compare","columns":["next_payment_due_date","last_payment_date"],"expected":"next_payment_due_date > last_payment_date","authored_on_failure":"warn","resolved_on_failure":"warn","mostly":1.0,"fail_closed":false,"idx":13,"row_level":true}', info=True) %}
-{% do log('PULSE_DIAG {"v":1,"step":"assert_dq_gate_validateloanmaster","event":"dq_unsupported","rule":"ExpectMulticolumnValuesToBeUnique","kind":"unknown","columns":["loan_number","origination_date"],"expected":"unknown","authored_on_failure":"block","resolved_on_failure":"block","mostly":1.0,"fail_closed":true,"idx":14,"row_level":false,"reason":"unrecognized check \'unknown\'; refusing to pass-open (GitHub #113)","remediation":"rule type is not in the supported vocabulary; re-author it as a supported GX type or set its severity to warn. Supported types: CheckDataExpectationParser."}', info=True) %}
-{% do log('PULSE_DIAG {"v":1,"step":"assert_dq_gate_validateloanmaster","event":"dq_rule","rule":"ExpectColumnPairValuesAToBeGreaterThanB","kind":"column_pair_compare","columns":["appraised_value","original_loan_amount"],"expected":"appraised_value > original_loan_amount","authored_on_failure":"warn","resolved_on_failure":"warn","mostly":1.0,"fail_closed":false,"idx":15,"row_level":true}', info=True) %}
-{% do log('PULSE_DIAG {"v":1,"step":"assert_dq_gate_validateloanmaster","event":"dq_gate","compiled_rules":16,"blocking_rules":8,"quarantine":true}', info=True) %}
+{% do log('PULSE_DIAG {"v":1,"step":"assert_dq_gate_validateloanmaster","event":"dq_rule","rule":"ExpectColumnPairValuesAToBeGreaterThanB","kind":"column_pair_compare","columns":["appraised_value","original_loan_amount"],"expected":"appraised_value > original_loan_amount","authored_on_failure":"warn","resolved_on_failure":"warn","mostly":1.0,"fail_closed":false,"idx":14,"row_level":true}', info=True) %}
+{% do log('PULSE_DIAG {"v":1,"step":"assert_dq_gate_validateloanmaster","event":"dq_rule","rule":"ExpectCompoundColumnsToBeUnique","kind":"compound_columns_unique","columns":["origination_date","maturity_date"],"expected":"unique across [origination_date, maturity_date]","authored_on_failure":"warn","resolved_on_failure":"warn","mostly":1.0,"fail_closed":false,"idx":15,"row_level":true}', info=True) %}
+{% do log('PULSE_DIAG {"v":1,"step":"assert_dq_gate_validateloanmaster","event":"dq_gate","compiled_rules":16,"blocking_rules":7,"quarantine":true}', info=True) %}
 
 WITH src AS (
     SELECT
@@ -38,7 +38,8 @@ WITH src AS (
         (NOT (`maturity_date` IS NULL AND `origination_date` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`maturity_date` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`origination_date` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`maturity_date` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`origination_date` AS STRING) AS FLOAT64) ELSE `maturity_date` > `origination_date` END IS NOT TRUE)) AS _dq_c11_bad,
         (NOT (`original_loan_amount` IS NULL AND `current_upb` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`current_upb` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`current_upb` AS STRING) AS FLOAT64) ELSE `original_loan_amount` > `current_upb` END IS NOT TRUE)) AS _dq_c12_bad,
         (NOT (`next_payment_due_date` IS NULL AND `last_payment_date` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`next_payment_due_date` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`last_payment_date` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`next_payment_due_date` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`last_payment_date` AS STRING) AS FLOAT64) ELSE `next_payment_due_date` > `last_payment_date` END IS NOT TRUE)) AS _dq_c13_bad,
-        (NOT (`appraised_value` IS NULL AND `original_loan_amount` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`appraised_value` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`appraised_value` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) ELSE `appraised_value` > `original_loan_amount` END IS NOT TRUE)) AS _dq_c15_bad
+        (NOT (`appraised_value` IS NULL AND `original_loan_amount` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`appraised_value` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`appraised_value` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) ELSE `appraised_value` > `original_loan_amount` END IS NOT TRUE)) AS _dq_c14_bad,
+        (NOT (`origination_date` IS NULL AND `maturity_date` IS NULL) AND (COUNT(*) OVER (PARTITION BY `origination_date`, `maturity_date`) > 1)) AS _dq_c15_bad
     FROM {{ ref('dim__loanmasterscd2') }} AS src
 ),
 stats AS (
@@ -61,8 +62,9 @@ stats AS (
         COUNTIF(NOT (`original_loan_amount` IS NULL AND `current_upb` IS NULL)) AS _dq_c12_evaluated,
         COUNTIF(_dq_c13_bad) AS _dq_c13_failed,
         COUNTIF(NOT (`next_payment_due_date` IS NULL AND `last_payment_date` IS NULL)) AS _dq_c13_evaluated,
-        COUNTIF(_dq_c15_bad) AS _dq_c15_failed,
-        COUNTIF(NOT (`appraised_value` IS NULL AND `original_loan_amount` IS NULL)) AS _dq_c15_evaluated
+        COUNTIF(_dq_c14_bad) AS _dq_c14_failed,
+        COUNTIF(NOT (`appraised_value` IS NULL AND `original_loan_amount` IS NULL)) AS _dq_c14_evaluated,
+        COUNTIF(_dq_c15_bad) AS _dq_c15_failed
     FROM src
 ),
 flags AS (
@@ -85,8 +87,9 @@ flags AS (
         _dq_c12_evaluated,
         _dq_c13_failed,
         _dq_c13_evaluated,
+        _dq_c14_failed,
+        _dq_c14_evaluated,
         _dq_c15_failed,
-        _dq_c15_evaluated,
         ((IF(_dq_total = 0, 0.0, _dq_c0_failed / _dq_total)) > 0) AS _dq_c0_failed_check,
         ((IF(_dq_total = 0, 0.0, _dq_c1_failed / _dq_total)) > 0) AS _dq_c1_failed_check,
         ((IF(_dq_total = 0, 0.0, _dq_c2_failed / _dq_total)) > 0) AS _dq_c2_failed_check,
@@ -101,8 +104,8 @@ flags AS (
         ((IF(_dq_c11_evaluated = 0, 0.0, _dq_c11_failed / _dq_c11_evaluated)) > 0) AS _dq_c11_failed_check,
         ((IF(_dq_c12_evaluated = 0, 0.0, _dq_c12_failed / _dq_c12_evaluated)) > 0) AS _dq_c12_failed_check,
         ((IF(_dq_c13_evaluated = 0, 0.0, _dq_c13_failed / _dq_c13_evaluated)) > 0) AS _dq_c13_failed_check,
-        TRUE AS _dq_c14_failed_check,
-        ((IF(_dq_c15_evaluated = 0, 0.0, _dq_c15_failed / _dq_c15_evaluated)) > 0) AS _dq_c15_failed_check
+        ((IF(_dq_c14_evaluated = 0, 0.0, _dq_c14_failed / _dq_c14_evaluated)) > 0) AS _dq_c14_failed_check,
+        ((IF(_dq_total = 0, 0.0, _dq_c15_failed / _dq_total)) > 0) AS _dq_c15_failed_check
     FROM stats
 ),
 _failing AS (
@@ -133,10 +136,6 @@ _failing AS (
     SELECT 11 AS _dq_gate_idx, CONCAT('PULSE_DIAG ', TO_JSON_STRING(STRUCT(1 AS v, 'assert_dq_gate_validateloanmaster' AS step, 'dq_check' AS event, 'ExpectColumnPairValuesAToBeGreaterThanB' AS rule, 'column_pair_compare' AS kind, ['maturity_date', 'origination_date'] AS columns, 'maturity_date > origination_date' AS expected, 'block' AS authored_on_failure, 'block' AS resolved_on_failure, 1.0 AS mostly, false AS fail_closed, 11 AS idx, _dq_c11_failed AS failed_rows, _dq_c11_evaluated AS evaluated_rows, _dq_total AS total_rows, 'compare the expected condition against the actual values; either the rule is wrong for this data or the data is wrong for this rule.' AS remediation, CONCAT('DQ FAIL ExpectColumnPairValuesAToBeGreaterThanB [maturity_date, origination_date]: ', CAST(_dq_c11_failed AS STRING), ' rows, expected maturity_date > origination_date') AS message))) AS diagnostic
     FROM flags
     WHERE _dq_c11_failed_check
-    UNION ALL
-    SELECT 14 AS _dq_gate_idx, CONCAT('PULSE_DIAG ', TO_JSON_STRING(STRUCT(1 AS v, 'assert_dq_gate_validateloanmaster' AS step, 'dq_unsupported' AS event, 'ExpectMulticolumnValuesToBeUnique' AS rule, 'unknown' AS kind, ['loan_number', 'origination_date'] AS columns, 'unknown' AS expected, 'block' AS authored_on_failure, 'block' AS resolved_on_failure, 1.0 AS mostly, true AS fail_closed, 14 AS idx, 'unrecognized check \'unknown\'; refusing to pass-open (GitHub #113)' AS reason, 'rule type is not in the supported vocabulary; re-author it as a supported GX type or set its severity to warn. Supported types: CheckDataExpectationParser.' AS remediation, 'DQ FAIL-CLOSED unsupported rule ExpectMulticolumnValuesToBeUnique [loan_number, origination_date]: unrecognized check \'unknown\'; refusing to pass-open (GitHub #113)' AS message))) AS diagnostic
-    FROM flags
-    WHERE _dq_c14_failed_check
 )
 SELECT ERROR(diagnostic_summary) AS failed_check
 FROM (

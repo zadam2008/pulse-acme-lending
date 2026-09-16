@@ -27,7 +27,8 @@ WITH src AS (
         (NOT (`maturity_date` IS NULL AND `origination_date` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`maturity_date` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`origination_date` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`maturity_date` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`origination_date` AS STRING) AS FLOAT64) ELSE `maturity_date` > `origination_date` END IS NOT TRUE)) AS _dq_c11_bad,
         (NOT (`original_loan_amount` IS NULL AND `current_upb` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`current_upb` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`current_upb` AS STRING) AS FLOAT64) ELSE `original_loan_amount` > `current_upb` END IS NOT TRUE)) AS _dq_c12_bad,
         (NOT (`next_payment_due_date` IS NULL AND `last_payment_date` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`next_payment_due_date` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`last_payment_date` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`next_payment_due_date` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`last_payment_date` AS STRING) AS FLOAT64) ELSE `next_payment_due_date` > `last_payment_date` END IS NOT TRUE)) AS _dq_c13_bad,
-        (NOT (`appraised_value` IS NULL AND `original_loan_amount` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`appraised_value` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`appraised_value` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) ELSE `appraised_value` > `original_loan_amount` END IS NOT TRUE)) AS _dq_c15_bad
+        (NOT (`appraised_value` IS NULL AND `original_loan_amount` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`appraised_value` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`appraised_value` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) ELSE `appraised_value` > `original_loan_amount` END IS NOT TRUE)) AS _dq_c14_bad,
+        (NOT (`origination_date` IS NULL AND `maturity_date` IS NULL) AND (COUNT(*) OVER (PARTITION BY `origination_date`, `maturity_date`) > 1)) AS _dq_c15_bad
     FROM {{ ref('dim__loanmasterscd2') }} AS src
 ),
 stats AS (
@@ -50,8 +51,9 @@ stats AS (
         COUNTIF(NOT (`original_loan_amount` IS NULL AND `current_upb` IS NULL)) AS _dq_c12_evaluated,
         COUNTIF(_dq_c13_bad) AS _dq_c13_failed,
         COUNTIF(NOT (`next_payment_due_date` IS NULL AND `last_payment_date` IS NULL)) AS _dq_c13_evaluated,
-        COUNTIF(_dq_c15_bad) AS _dq_c15_failed,
-        COUNTIF(NOT (`appraised_value` IS NULL AND `original_loan_amount` IS NULL)) AS _dq_c15_evaluated
+        COUNTIF(_dq_c14_bad) AS _dq_c14_failed,
+        COUNTIF(NOT (`appraised_value` IS NULL AND `original_loan_amount` IS NULL)) AS _dq_c14_evaluated,
+        COUNTIF(_dq_c15_bad) AS _dq_c15_failed
     FROM src
 ),
 flags AS (
@@ -71,11 +73,11 @@ flags AS (
         ((IF(_dq_c11_evaluated = 0, 0.0, _dq_c11_failed / _dq_c11_evaluated)) > 0) AS _dq_c11_failed_check,
         ((IF(_dq_c12_evaluated = 0, 0.0, _dq_c12_failed / _dq_c12_evaluated)) > 0) AS _dq_c12_failed_check,
         ((IF(_dq_c13_evaluated = 0, 0.0, _dq_c13_failed / _dq_c13_evaluated)) > 0) AS _dq_c13_failed_check,
-        TRUE AS _dq_c14_failed_check,
-        ((IF(_dq_c15_evaluated = 0, 0.0, _dq_c15_failed / _dq_c15_evaluated)) > 0) AS _dq_c15_failed_check
+        ((IF(_dq_c14_evaluated = 0, 0.0, _dq_c14_failed / _dq_c14_evaluated)) > 0) AS _dq_c14_failed_check,
+        ((IF(_dq_total = 0, 0.0, _dq_c15_failed / _dq_total)) > 0) AS _dq_c15_failed_check
     FROM stats
 )
-SELECT * EXCEPT(_dq_c0_bad, _dq_c1_bad, _dq_c2_bad, _dq_c3_bad, _dq_c4_bad, _dq_c5_bad, _dq_c6_bad, _dq_c7_bad, _dq_c8_bad, _dq_c9_bad, _dq_c10_bad, _dq_c11_bad, _dq_c12_bad, _dq_c13_bad, _dq_c15_bad, _dq_total, _dq_c0_failed_check, _dq_c1_failed_check, _dq_c2_failed_check, _dq_c3_failed_check, _dq_c4_failed_check, _dq_c5_failed_check, _dq_c6_failed_check, _dq_c7_failed_check, _dq_c8_failed_check, _dq_c9_failed_check, _dq_c10_failed_check, _dq_c11_failed_check, _dq_c12_failed_check, _dq_c13_failed_check, _dq_c14_failed_check, _dq_c15_failed_check)
+SELECT * EXCEPT(_dq_c0_bad, _dq_c1_bad, _dq_c2_bad, _dq_c3_bad, _dq_c4_bad, _dq_c5_bad, _dq_c6_bad, _dq_c7_bad, _dq_c8_bad, _dq_c9_bad, _dq_c10_bad, _dq_c11_bad, _dq_c12_bad, _dq_c13_bad, _dq_c14_bad, _dq_c15_bad, _dq_total, _dq_c0_failed_check, _dq_c1_failed_check, _dq_c2_failed_check, _dq_c3_failed_check, _dq_c4_failed_check, _dq_c5_failed_check, _dq_c6_failed_check, _dq_c7_failed_check, _dq_c8_failed_check, _dq_c9_failed_check, _dq_c10_failed_check, _dq_c11_failed_check, _dq_c12_failed_check, _dq_c13_failed_check, _dq_c14_failed_check, _dq_c15_failed_check)
 FROM src
 CROSS JOIN flags
 WHERE NOT ((flags._dq_c0_failed_check AND src._dq_c0_bad)
@@ -92,4 +94,5 @@ WHERE NOT ((flags._dq_c0_failed_check AND src._dq_c0_bad)
     OR (flags._dq_c11_failed_check AND src._dq_c11_bad)
     OR (flags._dq_c12_failed_check AND src._dq_c12_bad)
     OR (flags._dq_c13_failed_check AND src._dq_c13_bad)
+    OR (flags._dq_c14_failed_check AND src._dq_c14_bad)
     OR (flags._dq_c15_failed_check AND src._dq_c15_bad))
