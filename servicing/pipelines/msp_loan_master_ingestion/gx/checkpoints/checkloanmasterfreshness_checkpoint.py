@@ -6,8 +6,22 @@ import os
 from pyspark.sql import SparkSession
 
 PULSE_BUSINESS_DATE = os.environ.get('PULSE_BUSINESS_DATE', '{{ ds }}')
+import json as _pulse_json
+import sys as _pulse_sys
+
+
+def _pulse_diag(step, event, fields=None):
+    _rec = {"v": 1, "step": step, "event": event}
+    if fields:
+        _rec.update(fields)
+    _pulse_sys.stdout.write(
+        "PULSE_DIAG " + _pulse_json.dumps(_rec, default=str, separators=(",", ":")) + "\n")
+    _pulse_sys.stdout.flush()
+
+_pulse_diag("checkloanmasterfreshness", "task_start", {"pipeline": "msp_loan_master_ingestion", "instance": "CheckLoanMasterFreshness", "blueprint": "FreshnessChecks", "mode": "GCP_PULSE", "layer": "silver", "ops": ["check-data", "emit-report"], "business_date": PULSE_BUSINESS_DATE, "run_id": os.environ.get('PULSE_RUN_ID', ''), "airflow_task_id": os.environ.get('PULSE_TASK_ID', '')})
+
 spark = SparkSession.builder.appName('gx_checkloanmasterfreshness').getOrCreate()
-df = spark.read.format('bigquery').option('table', 'wf-pulse-agentic-dev2.pulse_gold.msp_loan_master_ingestion__loanmasterscd2').load()
+df = spark.read.format('bigquery').option('table', 'wf-pulse-agentic-dev2.pulse_silver.msp_loan_master_ingestion__cleanloanmaster').load()
 report_df = df
 # check-data: freshness SLA check over 'df' (no runtime GX); builds report_df.
 import os
@@ -46,6 +60,7 @@ if _freshness_required_cols.issubset(set(df.columns)):
     _breach_count = report_df.filter(F.col('breach_flag')).count()
     status = 'FAIL' if _breach_count > 0 else 'PASS'
     print(f"check-data freshness: per-bureau rows={report_df.count()} breaches={_breach_count}")
+    _pulse_diag("checkloanmasterfreshness", "freshness", {"op": "check-data", "shape": "per_dataset", "datasets": report_df.count(), "breaches": _breach_count, "expected_date": business_date, "max_age_minutes": 1440, "resolved_on_failure": "block"})
     def _pulse_emit_freshness_alert(row):
         print('PULSE_FRESHNESS_ALERT dataset=' + str(row['dataset_name']) + ' status=' + str(row['status']) + ' evaluated_at=' + str(row['evaluated_at']))
     for _pulse_breach in report_df.filter(F.col('breach_flag')).limit(100).collect():
@@ -95,6 +110,7 @@ else:
         _pulse_emit_freshness_alert(_pulse_freshness_result)
         raise Exception("check-data: freshness breach (on_failure=block).")
     print(f"check-data freshness: status={status} breach={breach_flag} actual_age_minutes={actual_age_minutes} max={max_age_minutes}")
+    _pulse_diag("checkloanmasterfreshness", "freshness", {"op": "check-data", "timestamp_column": "last_payment_date", "dataset": dataset_name, "row_count": _fr_stats['row_count'], "max_observed_date": max_observed_date, "expected_date": business_date, "actual_age_minutes": actual_age_minutes, "max_age_minutes": 1440, "status": status, "resolved_on_failure": "block", "remediation": "an empty table reports row_count 0 and a null max_observed_date; a stale one reports rows with an old date"})
 # emit-report: write the DQ report (FIX #7: append by default; Mode-aware catalog write).
 # Mode=GCP_PULSE, layer=silver, format=iceberg, report_mode=overwrite
 import os
