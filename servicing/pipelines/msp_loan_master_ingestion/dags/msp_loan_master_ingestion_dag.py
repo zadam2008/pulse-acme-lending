@@ -12,6 +12,18 @@ from airflow.providers.common.sql.sensors.sql import SqlSensor
 from airflow.sensors.external_task import ExternalTaskSensor
 from datetime import datetime, timedelta
 
+import json as _pulse_json
+import sys as _pulse_sys
+
+
+def _pulse_diag(step, event, fields=None):
+    _rec = {"v": 1, "step": step, "event": event}
+    if fields:
+        _rec.update(fields)
+    _pulse_sys.stdout.write(
+        "PULSE_DIAG " + _pulse_json.dumps(_rec, default=str, separators=(",", ":")) + "\n")
+    _pulse_sys.stdout.flush()
+
 def pulse_advance_time_not_implemented(**context):
     # Temporary no-op; restore AdvanceTimeDimensionOperator when issue #118 is implemented.
     import logging
@@ -31,7 +43,7 @@ default_args = {
 
 with DAG(
     dag_id='pulse_msp_loan_master_ingestion_v1',
-    description='Ingests daily MSP Loan Master extracts, cleans and conforms to silver, tracks historical changes via SCD2, and validates data quality',
+    description='Ingests daily loan master files from MSP, cleans and conforms to silver, tracks historical changes via SCD2, and validates data quality',
     default_args=default_args,
     schedule='0 6 * * 1-5',
     start_date=datetime(2026, 1, 1),
@@ -129,13 +141,12 @@ with DAG(
     )
     # Intra-layer task group dependencies (from port wirings)
     tg_cleanloanmaster >> tg_maskloanmasterpii
-    tg_maskloanmasterpii >> tg_validateloanmaster
-    tg_loanmasterscd2 >> tg_advanceloanmasterdate
+    tg_loanmasterscd2 >> tg_validateloanmaster
+    tg_validateloanmaster >> tg_advanceloanmasterdate
     tg_ingestloanmaster >> gx_bronze_silver_gate
     gx_bronze_silver_gate >> tg_cleanloanmaster
     gx_bronze_silver_gate >> tg_maskloanmasterpii
-    gx_bronze_silver_gate >> tg_validateloanmaster
     tg_cleanloanmaster >> gx_silver_gold_gate
     tg_maskloanmasterpii >> gx_silver_gold_gate
-    tg_validateloanmaster >> gx_silver_gold_gate
     gx_silver_gold_gate >> tg_loanmasterscd2
+    gx_silver_gold_gate >> tg_validateloanmaster

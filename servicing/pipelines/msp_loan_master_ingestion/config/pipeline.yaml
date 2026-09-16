@@ -12,31 +12,24 @@ steps:
     blueprint: FileIngestion
     category: INGESTION
     params:
-      sor_id: 01M2KBT34DQC6M3AZMDNH7YJP1
-      delimiter: ,
-      date_value: RUN_DATE
-      has_header: true
-      dataset_ids: [01M2KBV9FR84GNBYFFZ8J93PM6]
-      pattern_kind: template
+      sor_id: 01M2KTXF94QT8NTWR8V5MYHASH
+      dataset_ids: [01M2KTYHH26WV2NVKDZCWWSZZQ]
       filename_pattern: loan_master_YYYYMMDD.csv
-      connector_instance_id: 01M2KBT8ZDZCKZWX9V10Z0GFJ8
+      connector_instance_id: 01M2KTXMMD570NGN0PQSVZ9EF5
   - name: CleanLoanMaster
     blueprint: BronzeToSilverCleaning
     category: TRANSFORM
-    params:
-      dedup_key: [loan_id]
   - name: MaskLoanMasterPII
     blueprint: PIIMasking
     category: TRANSFORM
     params:
-      columns_to_mask: [borrower_ssn_masked, borrower_first_name, borrower_last_name, borrower_email, borrower_phone, borrower_dob, coborrower_first_name, coborrower_last_name, property_address_line1]
-      masking_strategy: hash
+      columns_to_mask: [borrower_first_name, borrower_last_name, borrower_ssn, borrower_email, borrower_phone, co_borrower_first_name, co_borrower_last_name, property_address]
   - name: LoanMasterSCD2
     blueprint: SCD2Dimension
     category: MODELING
     params:
-      business_key: [loan_id]
-      tracked_columns: [loan_status, current_upb, interest_rate, months_delinquent, escrow_balance, borrower_credit_score, next_payment_due_date, servicer_name, investor_name]
+      business_key: [loan_number]
+      tracked_columns: [loan_status, current_upb, escrow_balance, servicer_code, interest_rate, next_payment_due_date, delinquency_status]
   - name: ValidateLoanMaster
     blueprint: DQValidator
     category: DATA_QUALITY

@@ -9,6 +9,20 @@ import os
 PULSE_BUSINESS_DATE = os.environ.get('PULSE_BUSINESS_DATE', '{{ ds }}')
 PULSE_PROCESSING_TS = os.environ.get('PULSE_PROCESSING_TS', '{{ ts }}')
 
+import json as _pulse_json
+import sys as _pulse_sys
+
+
+def _pulse_diag(step, event, fields=None):
+    _rec = {"v": 1, "step": step, "event": event}
+    if fields:
+        _rec.update(fields)
+    _pulse_sys.stdout.write(
+        "PULSE_DIAG " + _pulse_json.dumps(_rec, default=str, separators=(",", ":")) + "\n")
+    _pulse_sys.stdout.flush()
+
+_pulse_diag("ingestloanmaster", "task_start", {"pipeline": "msp_loan_master_ingestion", "instance": "IngestLoanMaster", "blueprint": "FileIngestion", "mode": "GCP_PULSE", "ops": ["read-source", "add-audit-columns", "write-sink"], "business_date": PULSE_BUSINESS_DATE, "run_id": os.environ.get('PULSE_RUN_ID', ''), "airflow_task_id": os.environ.get('PULSE_TASK_ID', '')})
+
 spark = SparkSession.builder \
     .appName('msp_loan_master_ingestion_ingestloanmaster') \
     .config('spark.sql.adaptive.enabled', 'true') \
@@ -16,6 +30,7 @@ spark = SparkSession.builder \
 
 # read-source: PySpark read into 'df' (Mode=GCP_PULSE).
 import os
+_pulse_diag("ingestloanmaster", "read", {"op": "read-source", "phase": "plan", "mode": "GCP_PULSE", "layer": "bronze", "source_format": "csv", "source_uri": "gs://pulse-home-lending-dev-files/servicing/msp/msp-loan-master-ingestion/SRC/", "business_date": PULSE_BUSINESS_DATE})
 # PULSE CSV inference reads as strings first, infers a guarded schema,
 # then rereads with explicit types. This preserves identifier-like
 # values such as ZIP/postal codes that Spark's CSV inferSchema would
@@ -110,6 +125,7 @@ df = (df
 # write-sink: PySpark write of 'df' (Mode=GCP_PULSE, layer=bronze, format=iceberg).
 import os
 PULSE_TARGET_URI = os.environ.get('PULSE_TARGET_URI', 'gs://pulse-home-lending-dev-lake/servicing/msp/msp-loan-master-ingestion/bronze/ingestloanmaster/')
+_pulse_diag("ingestloanmaster", "write", {"op": "write-sink", "phase": "plan", "mode": "GCP_PULSE", "layer": "bronze", "format": "iceberg", "write_mode": "overwrite", "blueprint_key": "FileIngestion", "merge_keys": [], "target": PULSE_TARGET_URI, "partitions": df.rdd.getNumPartitions(), "business_date": PULSE_BUSINESS_DATE})
 import re as _pulse_re
 _pulse_table = 'pulse.pulse_bronze.' + _pulse_re.sub(r'[^A-Za-z0-9_]', '_', PULSE_TARGET_URI.rstrip('/').split('/')[-1])
 df.writeTo(_pulse_table).using('iceberg').createOrReplace()

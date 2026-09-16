@@ -15,16 +15,20 @@ WITH src AS (
         src.*,
         (`loan_id` IS NULL) AS _dq_c0_bad,
         (COUNT(*) OVER (PARTITION BY `loan_id`) > 1) AS _dq_c1_bad,
-        (`loan_status` IS NULL) AS _dq_c2_bad,
-        (`loan_status` IS NOT NULL AND NOT (`loan_status` IN ('ACTIVE', 'CLOSED', 'DEFAULT', 'FORBEARANCE', 'MODIFICATION', 'PAID_OFF'))) AS _dq_c3_bad,
+        (`loan_number` IS NULL) AS _dq_c2_bad,
+        (COUNT(*) OVER (PARTITION BY `loan_number`) > 1) AS _dq_c3_bad,
         (`original_loan_amount` IS NOT NULL AND ((SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) < 0))) AS _dq_c4_bad,
         (`current_upb` IS NOT NULL AND ((SAFE_CAST(CAST(`current_upb` AS STRING) AS FLOAT64) < 0))) AS _dq_c5_bad,
-        (`origination_date` IS NULL) AS _dq_c6_bad,
-        (NOT (`original_loan_amount` IS NULL AND `current_upb` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`current_upb` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) >= SAFE_CAST(CAST(`current_upb` AS STRING) AS FLOAT64) ELSE `original_loan_amount` >= `current_upb` END IS NOT TRUE)) AS _dq_c7_bad,
-        (NOT (`maturity_date` IS NULL AND `origination_date` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`maturity_date` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`origination_date` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`maturity_date` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`origination_date` AS STRING) AS FLOAT64) ELSE `maturity_date` > `origination_date` END IS NOT TRUE)) AS _dq_c8_bad,
-        (NOT (`appraised_value` IS NULL AND `original_loan_amount` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`appraised_value` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`appraised_value` AS STRING) AS FLOAT64) >= SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) ELSE `appraised_value` >= `original_loan_amount` END IS NOT TRUE)) AS _dq_c9_bad,
-        (NOT (`next_payment_due_date` IS NULL AND `last_payment_date` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`next_payment_due_date` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`last_payment_date` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`next_payment_due_date` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`last_payment_date` AS STRING) AS FLOAT64) ELSE `next_payment_due_date` > `last_payment_date` END IS NOT TRUE)) AS _dq_c11_bad
-    FROM {{ ref('stg__msp__maskloanmasterpii_masked') }} AS src
+        (`months_delinquent` IS NOT NULL AND ((SAFE_CAST(CAST(`months_delinquent` AS STRING) AS FLOAT64) < 0))) AS _dq_c6_bad,
+        (`escrow_balance` IS NOT NULL AND ((SAFE_CAST(CAST(`escrow_balance` AS STRING) AS FLOAT64) < 0))) AS _dq_c7_bad,
+        (`interest_rate` IS NOT NULL AND ((SAFE_CAST(CAST(`interest_rate` AS STRING) AS FLOAT64) < 0) OR (SAFE_CAST(CAST(`interest_rate` AS STRING) AS FLOAT64) > 100))) AS _dq_c8_bad,
+        (`ltv_ratio` IS NOT NULL AND ((SAFE_CAST(CAST(`ltv_ratio` AS STRING) AS FLOAT64) < 0) OR (SAFE_CAST(CAST(`ltv_ratio` AS STRING) AS FLOAT64) > 200))) AS _dq_c9_bad,
+        (`borrower_credit_score` IS NOT NULL AND ((SAFE_CAST(CAST(`borrower_credit_score` AS STRING) AS FLOAT64) < 300) OR (SAFE_CAST(CAST(`borrower_credit_score` AS STRING) AS FLOAT64) > 850))) AS _dq_c10_bad,
+        (NOT (`maturity_date` IS NULL AND `origination_date` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`maturity_date` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`origination_date` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`maturity_date` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`origination_date` AS STRING) AS FLOAT64) ELSE `maturity_date` > `origination_date` END IS NOT TRUE)) AS _dq_c11_bad,
+        (NOT (`original_loan_amount` IS NULL AND `current_upb` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`current_upb` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`current_upb` AS STRING) AS FLOAT64) ELSE `original_loan_amount` > `current_upb` END IS NOT TRUE)) AS _dq_c12_bad,
+        (NOT (`next_payment_due_date` IS NULL AND `last_payment_date` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`next_payment_due_date` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`last_payment_date` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`next_payment_due_date` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`last_payment_date` AS STRING) AS FLOAT64) ELSE `next_payment_due_date` > `last_payment_date` END IS NOT TRUE)) AS _dq_c13_bad,
+        (NOT (`appraised_value` IS NULL AND `original_loan_amount` IS NULL) AND (CASE WHEN SAFE_CAST(CAST(`appraised_value` AS STRING) AS FLOAT64) IS NOT NULL AND SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) IS NOT NULL THEN SAFE_CAST(CAST(`appraised_value` AS STRING) AS FLOAT64) > SAFE_CAST(CAST(`original_loan_amount` AS STRING) AS FLOAT64) ELSE `appraised_value` > `original_loan_amount` END IS NOT TRUE)) AS _dq_c15_bad
+    FROM {{ ref('dim__loanmasterscd2') }} AS src
 ),
 stats AS (
     SELECT
@@ -37,13 +41,17 @@ stats AS (
         COUNTIF(_dq_c5_bad) AS _dq_c5_failed,
         COUNTIF(_dq_c6_bad) AS _dq_c6_failed,
         COUNTIF(_dq_c7_bad) AS _dq_c7_failed,
-        COUNTIF(NOT (`original_loan_amount` IS NULL AND `current_upb` IS NULL)) AS _dq_c7_evaluated,
         COUNTIF(_dq_c8_bad) AS _dq_c8_failed,
-        COUNTIF(NOT (`maturity_date` IS NULL AND `origination_date` IS NULL)) AS _dq_c8_evaluated,
         COUNTIF(_dq_c9_bad) AS _dq_c9_failed,
-        COUNTIF(NOT (`appraised_value` IS NULL AND `original_loan_amount` IS NULL)) AS _dq_c9_evaluated,
+        COUNTIF(_dq_c10_bad) AS _dq_c10_failed,
         COUNTIF(_dq_c11_bad) AS _dq_c11_failed,
-        COUNTIF(NOT (`next_payment_due_date` IS NULL AND `last_payment_date` IS NULL)) AS _dq_c11_evaluated
+        COUNTIF(NOT (`maturity_date` IS NULL AND `origination_date` IS NULL)) AS _dq_c11_evaluated,
+        COUNTIF(_dq_c12_bad) AS _dq_c12_failed,
+        COUNTIF(NOT (`original_loan_amount` IS NULL AND `current_upb` IS NULL)) AS _dq_c12_evaluated,
+        COUNTIF(_dq_c13_bad) AS _dq_c13_failed,
+        COUNTIF(NOT (`next_payment_due_date` IS NULL AND `last_payment_date` IS NULL)) AS _dq_c13_evaluated,
+        COUNTIF(_dq_c15_bad) AS _dq_c15_failed,
+        COUNTIF(NOT (`appraised_value` IS NULL AND `original_loan_amount` IS NULL)) AS _dq_c15_evaluated
     FROM src
 ),
 flags AS (
@@ -56,14 +64,18 @@ flags AS (
         ((IF(_dq_total = 0, 0.0, _dq_c4_failed / _dq_total)) > 0) AS _dq_c4_failed_check,
         ((IF(_dq_total = 0, 0.0, _dq_c5_failed / _dq_total)) > 0) AS _dq_c5_failed_check,
         ((IF(_dq_total = 0, 0.0, _dq_c6_failed / _dq_total)) > 0) AS _dq_c6_failed_check,
-        ((IF(_dq_c7_evaluated = 0, 0.0, _dq_c7_failed / _dq_c7_evaluated)) > 0) AS _dq_c7_failed_check,
-        ((IF(_dq_c8_evaluated = 0, 0.0, _dq_c8_failed / _dq_c8_evaluated)) > 0) AS _dq_c8_failed_check,
-        ((IF(_dq_c9_evaluated = 0, 0.0, _dq_c9_failed / _dq_c9_evaluated)) > 0) AS _dq_c9_failed_check,
-        TRUE AS _dq_c10_failed_check,
-        ((IF(_dq_c11_evaluated = 0, 0.0, _dq_c11_failed / _dq_c11_evaluated)) > 0) AS _dq_c11_failed_check
+        ((IF(_dq_total = 0, 0.0, _dq_c7_failed / _dq_total)) > 0) AS _dq_c7_failed_check,
+        ((IF(_dq_total = 0, 0.0, _dq_c8_failed / _dq_total)) > 0) AS _dq_c8_failed_check,
+        ((IF(_dq_total = 0, 0.0, _dq_c9_failed / _dq_total)) > 0) AS _dq_c9_failed_check,
+        ((IF(_dq_total = 0, 0.0, _dq_c10_failed / _dq_total)) > 0) AS _dq_c10_failed_check,
+        ((IF(_dq_c11_evaluated = 0, 0.0, _dq_c11_failed / _dq_c11_evaluated)) > 0) AS _dq_c11_failed_check,
+        ((IF(_dq_c12_evaluated = 0, 0.0, _dq_c12_failed / _dq_c12_evaluated)) > 0) AS _dq_c12_failed_check,
+        ((IF(_dq_c13_evaluated = 0, 0.0, _dq_c13_failed / _dq_c13_evaluated)) > 0) AS _dq_c13_failed_check,
+        TRUE AS _dq_c14_failed_check,
+        ((IF(_dq_c15_evaluated = 0, 0.0, _dq_c15_failed / _dq_c15_evaluated)) > 0) AS _dq_c15_failed_check
     FROM stats
 )
-SELECT * EXCEPT(_dq_c0_bad, _dq_c1_bad, _dq_c2_bad, _dq_c3_bad, _dq_c4_bad, _dq_c5_bad, _dq_c6_bad, _dq_c7_bad, _dq_c8_bad, _dq_c9_bad, _dq_c11_bad, _dq_total, _dq_c0_failed_check, _dq_c1_failed_check, _dq_c2_failed_check, _dq_c3_failed_check, _dq_c4_failed_check, _dq_c5_failed_check, _dq_c6_failed_check, _dq_c7_failed_check, _dq_c8_failed_check, _dq_c9_failed_check, _dq_c10_failed_check, _dq_c11_failed_check),
+SELECT * EXCEPT(_dq_c0_bad, _dq_c1_bad, _dq_c2_bad, _dq_c3_bad, _dq_c4_bad, _dq_c5_bad, _dq_c6_bad, _dq_c7_bad, _dq_c8_bad, _dq_c9_bad, _dq_c10_bad, _dq_c11_bad, _dq_c12_bad, _dq_c13_bad, _dq_c15_bad, _dq_total, _dq_c0_failed_check, _dq_c1_failed_check, _dq_c2_failed_check, _dq_c3_failed_check, _dq_c4_failed_check, _dq_c5_failed_check, _dq_c6_failed_check, _dq_c7_failed_check, _dq_c8_failed_check, _dq_c9_failed_check, _dq_c10_failed_check, _dq_c11_failed_check, _dq_c12_failed_check, _dq_c13_failed_check, _dq_c14_failed_check, _dq_c15_failed_check),
     CAST('DQ_VALIDATION_FAILED' AS STRING) AS reject_reason
 FROM src
 CROSS JOIN flags
@@ -77,4 +89,8 @@ WHERE (flags._dq_c0_failed_check AND src._dq_c0_bad)
     OR (flags._dq_c7_failed_check AND src._dq_c7_bad)
     OR (flags._dq_c8_failed_check AND src._dq_c8_bad)
     OR (flags._dq_c9_failed_check AND src._dq_c9_bad)
+    OR (flags._dq_c10_failed_check AND src._dq_c10_bad)
     OR (flags._dq_c11_failed_check AND src._dq_c11_bad)
+    OR (flags._dq_c12_failed_check AND src._dq_c12_bad)
+    OR (flags._dq_c13_failed_check AND src._dq_c13_bad)
+    OR (flags._dq_c15_failed_check AND src._dq_c15_bad)

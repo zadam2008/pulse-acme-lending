@@ -27,9 +27,8 @@ step_4_drop_columns AS (
     FROM step_3_change_types
 ),
 step_5_deduplicate AS (
-    SELECT *
+    SELECT DISTINCT *
     FROM step_4_drop_columns
-    QUALIFY row_number() OVER (PARTITION BY loan_id ORDER BY loan_id) = 1
 )
 SELECT *,
     current_timestamp() as _pulse_processed_at
